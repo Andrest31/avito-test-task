@@ -1,32 +1,65 @@
-// client/src/pages/Board.tsx
-import { useParams } from 'react-router-dom';
+// src/pages/BoardPage/BoardPage.tsx
+import { useParams } from "react-router-dom";
+import "./BoardPage.css";
+import TaskColumn from "../../components/TaskColumn/TaskColumn";
+import { Task } from "../../components/TaskCard/TaskCard"; // Правильный импорт типа
 
-export default function Board() {
-  const { id } = useParams(); // ID доски из URL
-  // Заглушка данных
-  const tasks = [
-    { id: '1', title: 'Рефакторинг кода', status: 'In Progress' },
-    { id: '2', title: 'Добавить тесты', status: 'To Do' },
+const BoardPage = () => {
+  const { id } = useParams();
+  
+  const columns: { status: string; tasks: Task[] }[] = [
+    { 
+      status: 'To Do', 
+      tasks: [
+        { 
+          id: '1', 
+          title: 'Добавить тесты', 
+          description: 'Написать unit-тесты для компонентов',
+          priority: 'high',
+          boardId: id // Добавляем boardId
+        }
+      ] 
+    },
+    { 
+      status: 'In Progress', 
+      tasks: [
+        { 
+          id: '2', 
+          title: 'Интеграция с API', 
+          description: 'Подключить endpoints бэкенда',
+          priority: 'medium',
+          boardId: id
+        }
+      ] 
+    },
+    { 
+      status: 'Done', 
+      tasks: [
+        { 
+          id: '3', 
+          title: 'Создать базовые компоненты', 
+          description: 'Реализовать Header, Sidebar и TaskCard',
+          priority: 'low',
+          boardId: id
+        }
+      ] 
+    }
   ];
 
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Доска проекта #{id}</h1>
-      <div className="flex gap-4">
-        {/* Колонки по статусам */}
-        {['To Do', 'In Progress', 'Done'].map(status => (
-          <div key={status} className="flex-1 border p-2 rounded-lg">
-            <h2 className="font-semibold">{status}</h2>
-            {tasks
-              .filter(task => task.status === status)
-              .map(task => (
-                <div key={task.id} className="p-2 my-2 bg-white rounded shadow">
-                  {task.title}
-                </div>
-              ))}
-          </div>
+    <div className="page-container">
+      <h1 className="page-title">Доска проекта #{id}</h1>
+      <div className="board-columns">
+        {columns.map(column => (
+          <TaskColumn 
+            key={column.status} 
+            status={column.status} 
+            tasks={column.tasks} 
+          />
         ))}
       </div>
     </div>
   );
-}
+};
+
+export default BoardPage;

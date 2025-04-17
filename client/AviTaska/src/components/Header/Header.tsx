@@ -1,13 +1,26 @@
 import { Link } from "react-router-dom";
+import "./Header.css";
 
-export default function Header() {
+const Header = () => {
   return (
-    <header className="bg-blue-600 p-4 text-white">
-      <nav className="flex gap-4">
-        <Link to="/boards">Доски</Link>
-        <Link to="/issues">Задачи</Link>
-        <button className="ml-auto">Создать задачу</button>
-      </nav>
+    <header className="header">
+      <Link to="/" className="logo">AviTaska</Link>
+      
+      <div className="search-bar">
+        <input 
+          type="text" 
+          className="search-input" 
+          placeholder="Поиск задач..." 
+        />
+        <button className="search-button">Найти</button>
+      </div>
+
+      <div className="user-nav">
+        <Link to="/issues" className="nav-button">Все задачи</Link>
+        <Link to="/boards" className="nav-button">Мои доски</Link>
+      </div>
     </header>
   );
-}
+};
+
+export default Header;

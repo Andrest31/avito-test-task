@@ -1,22 +1,36 @@
-// client/src/pages/Issues.tsx
-export default function Issues() {
-    // Заглушка данных
-    const issues = [
-      { id: '1', title: 'Исправить баг', board: 'Проект «Авто»', status: 'In Progress' },
-      { id: '2', title: 'Обновить документацию', board: 'Проект «Дизайн»', status: 'To Do' },
-    ];
-  
-    return (
-      <div className="p-4">
-        <h1 className="text-2xl font-bold mb-4">Все задачи</h1>
-        <div className="space-y-2">
-          {issues.map(issue => (
-            <div key={issue.id} className="border p-3 rounded-lg hover:bg-gray-50">
-              <h3>{issue.title}</h3>
-              <p>Доска: {issue.board} • Статус: {issue.status}</p>
-            </div>
-          ))}
-        </div>
+import TaskCard from "../../components/TaskCard/TaskCard";
+
+const IssuesPage = () => {
+  const tasks = [
+    { 
+      id: '1', 
+      title: 'Рефакторинг кода', 
+      description: 'Улучшить структуру компонентов',
+      status: 'In Progress',
+      board: 'Проект "Авто"'
+    },
+    { 
+      id: '2', 
+      title: 'Добавить DnD', 
+      description: 'Реализовать drag-and-drop для задач',
+      status: 'To Do',
+      board: 'Проект "Дизайн"'
+    }
+  ];
+
+  return (
+    <div className="page-container">
+      <div className="page-header">
+        <h1 className="page-title">Все задачи</h1>
+        <button className="create-button">+ Создать задачу</button>
       </div>
-    );
-  }
+      <div className="tasks-grid">
+        {tasks.map(task => (
+          <TaskCard key={task.id} task={task} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default IssuesPage;
