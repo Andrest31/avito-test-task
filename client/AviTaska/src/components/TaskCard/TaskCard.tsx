@@ -4,15 +4,20 @@ import './TaskCard.css';
 export type Task = {
   id: string;
   title: string;
-  description?: string;
-  status?: string;
-  board?: string;
-  boardId?: string;
-  assignee?: string; // Добавляем поле исполнителя
-  priority?: 'low' | 'medium' | 'high';
+  description: string;
+  status: string;
+  board: string;
+  boardId: string;
+  assignee: string;
+  priority: 'low' | 'medium' | 'high';
 };
 
-const TaskCard = ({ task }: { task: Task }) => {
+type TaskCardProps = {
+  task: Task;
+  onEditClick: (task: Task) => void;
+};
+
+const TaskCard = ({ task, onEditClick }: TaskCardProps) => {
   const priorityColors = {
     low: '#4CAF50',
     medium: '#FFC107',
@@ -33,35 +38,29 @@ const TaskCard = ({ task }: { task: Task }) => {
         )}
       </div>
       
-      {task.description && (
-        <p className="task-description">{task.description}</p>
-      )}
+      <p className="task-description">{task.description}</p>
       
       <div className="task-meta">
         <div className="meta-left">
-          {task.status && (
-            <span className="task-status">{task.status}</span>
-          )}
-          {task.assignee && (
-            <span className="assignee-label">Исполнитель: {task.assignee}</span>
-          )}
+          <span className="task-status">{task.status}</span>
+          <span className="assignee-label">Исполнитель: {task.assignee}</span>
         </div>
         
-        
-        {(task.board || task.boardId) && (
-          <Link 
-            to={`/board/${task.boardId || '1'}`} 
-            className="board-link"
-          >
-            Доска: {task.board || 'Неизвестная доска'}
-          </Link>
-        )}
+        <Link 
+          to={`/board/${task.boardId}`} 
+          className="board-link"
+        >
+          Доска: {task.board}
+        </Link>
       </div>
       
       <div className="task-actions">
-        <Link to={`/tasks/${task.id}`} className="edit-button">
+        <button 
+          onClick={() => onEditClick(task)}
+          className="edit-button"
+        >
           Редактировать
-        </Link>
+        </button>
       </div>
     </div>
   );

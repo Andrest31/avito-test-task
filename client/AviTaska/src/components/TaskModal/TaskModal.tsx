@@ -2,20 +2,24 @@ import { useState, useEffect } from 'react';
 import { useLocation, NavLink } from 'react-router-dom';
 import './TaskModal.css';
 
+export type TaskData = {
+  id?: string;
+  title: string;
+  description: string;
+  board: string;
+  boardId?: string;
+  priority: 'low' | 'medium' | 'high';
+  status: 'todo' | 'in_progress' | 'done';
+  assignee: string;
+};
+
 type TaskModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  initialData?: {
-    id?: string;
-    title: string;
-    description: string;
-    board: string;
-    priority: string;
-    status: string;
-    assignee: string;
-  };
+  initialData?: TaskData;
   isFromBoard?: boolean;
-  onTaskCreated?: () => void;
+  initialBoard?: string;
+  onTaskCreated: (task: Omit<TaskData, 'id'>) => void;
 };
 
 const TaskModal = ({ 
@@ -23,67 +27,52 @@ const TaskModal = ({
   onClose, 
   initialData, 
   isFromBoard, 
+  initialBoard,
   onTaskCreated 
 }: TaskModalProps) => {
   const location = useLocation();
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Omit<TaskData, 'id'>>({
     title: '',
     description: '',
-    board: '',
+    board: initialBoard || '',
     priority: 'medium',
     status: 'todo',
     assignee: ''
   });
 
   useEffect(() => {
-    if (!isOpen) {
-      setFormData({
-        title: '',
-        description: '',
-        board: '',
-        priority: 'medium',
-        status: 'todo',
-        assignee: ''
-      });
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
     if (initialData) {
       setFormData({
         title: initialData.title,
-        description: initialData.description || '',
+        description: initialData.description,
         board: initialData.board,
         priority: initialData.priority,
         status: initialData.status,
         assignee: initialData.assignee
       });
+    } else if (!isOpen) {
+      setFormData({
+        title: '',
+        description: '',
+        board: initialBoard || '',
+        priority: 'medium',
+        status: 'todo',
+        assignee: ''
+      });
     }
-  }, [initialData]);
+  }, [isOpen, initialData, initialBoard]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    try {
-      // Здесь должна быть реальная логика API
-      console.log('Task created:', formData);
-      
-      // Имитация задержки API
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      if (onTaskCreated) {
-        onTaskCreated();
-      }
-      
-      onClose();
-    } catch (error) {
-      console.error('Error creating task:', error);
-    }
+    onTaskCreated(formData);
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -182,9 +171,9 @@ const TaskModal = ({
           </div>
 
           <div className="modal-actions">
-            {!isFromBoard && initialData && (
+            {initialData && !isFromBoard && !location.pathname.includes('/board/') && (
               <NavLink 
-                to={`/board/${formData.board}`}
+                to={`/board/${formData.board === "Проект 'Авто'" ? '1' : '2'}`}
                 className="go-to-board-button"
               >
                 Перейти на доску

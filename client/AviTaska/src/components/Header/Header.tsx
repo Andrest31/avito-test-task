@@ -1,14 +1,18 @@
 import { useState } from "react";
-import { NavLink } from "react-router-dom";
-import TaskModal from "../TaskModal/TaskModal";
+import { NavLink, useLocation } from "react-router-dom";
+import TaskModal, { TaskData } from "../TaskModal/TaskModal";
 import "./Header.css";
 
 type HeaderProps = {
-  onTaskCreated?: () => void;
+  onTaskCreated?: (task: Omit<TaskData, 'id'>) => void;
+  currentBoard?: string;
 };
 
-const Header = ({ onTaskCreated }: HeaderProps) => {
+const Header = ({ onTaskCreated, currentBoard }: HeaderProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const location = useLocation();
+
+  const isBoardPage = location.pathname.includes('/board/');
 
   return (
     <>
@@ -45,7 +49,9 @@ const Header = ({ onTaskCreated }: HeaderProps) => {
       <TaskModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onTaskCreated={onTaskCreated}
+        onTaskCreated={onTaskCreated || (() => {})}
+        isFromBoard={isBoardPage}
+        initialBoard={currentBoard}
       />
     </>
   );

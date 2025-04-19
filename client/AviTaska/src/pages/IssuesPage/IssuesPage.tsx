@@ -1,33 +1,97 @@
 import { useState } from "react";
-import { NavLink } from "react-router-dom";
 import TaskCard from "../../components/TaskCard/TaskCard";
+import TaskModal, { TaskData } from "../../components/TaskModal/TaskModal";
 import "./IssuesPage.css";
 
+type Task = {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  board: string;
+  boardId: string;
+  assignee: string;
+  priority: 'low' | 'medium' | 'high';
+};
+
 const IssuesPage = () => {
-  const allTasks = [
-    { id: '1', title: 'Рефакторинг кода', status: 'In Progress', board: 'Проект "Авто"', assignee: 'Иванов' },
-    { id: '2', title: 'Добавить DnD', status: 'To Do', board: 'Проект "Дизайн"', assignee: 'Петров' },
-    { id: '3', title: 'Обновить API', status: 'Done', board: 'Проект "Авто"', assignee: 'Сидоров' }
-  ];
+  const [allTasks, setAllTasks] = useState<Task[]>([
+    { 
+      id: '1', 
+      title: 'Рефакторинг кода', 
+      description: 'Необходимо провести рефакторинг основного модуля',
+      status: 'In Progress', 
+      board: "Проект 'Авто'",
+      boardId: '1',
+      assignee: 'Иванов',
+      priority: 'high'
+    },
+    { 
+      id: '2', 
+      title: 'Добавить DnD', 
+      description: 'Реализовать drag and drop для задач',
+      status: 'To Do', 
+      board: "Проект 'Дизайн'",
+      boardId: '2',
+      assignee: 'Петров',
+      priority: 'medium'
+    }
+  ]);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeBoard, setActiveBoard] = useState<string | null>(null);
-  const [activeStatus, setActiveStatus] = useState<string | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
-  const [hoveredSubmenu, setHoveredSubmenu] = useState<string | null>(null);
-
-  const boards = [...new Set(allTasks.map(task => task.board))];
-  const statuses = [...new Set(allTasks.map(task => task.status))];
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const filteredTasks = allTasks.filter(task => {
     const searchLower = searchQuery.toLowerCase();
-    const matchesSearch = 
+    return (
       task.title.toLowerCase().includes(searchLower) || 
-      task.assignee.toLowerCase().includes(searchLower);
-    const matchesBoard = !activeBoard || task.board === activeBoard;
-    const matchesStatus = !activeStatus || task.status === activeStatus;
-    return matchesSearch && matchesBoard && matchesStatus;
+      task.assignee.toLowerCase().includes(searchLower)
+    );
   });
+
+  const handleTaskCreated = (newTaskData: Omit<TaskData, 'id'>) => {
+    const boardId = newTaskData.board === "Проект 'Авто'" ? '1' : '2';
+    const statusMap = {
+      todo: 'To Do',
+      in_progress: 'In Progress',
+      done: 'Done'
+    };
+    
+    if (editingTask) {
+      setAllTasks(allTasks.map(task => 
+        task.id === editingTask.id ? { 
+          ...task, 
+          ...newTaskData,
+          boardId,
+          status: statusMap[newTaskData.status] || task.status
+        } : task
+      ));
+    } else {
+      setAllTasks([...allTasks, {
+        ...newTaskData,
+        id: `${allTasks.length + 1}`,
+        boardId,
+        status: statusMap[newTaskData.status] || 'To Do'
+      }]);
+    }
+    setIsModalOpen(false);
+    setEditingTask(null);
+  };
+
+  const handleEditClick = (task: Task) => {
+    const statusMap = {
+      'To Do': 'todo',
+      'In Progress': 'in_progress',
+      'Done': 'done'
+    };
+    
+    setEditingTask({
+      ...task,
+      status: statusMap[task.status as keyof typeof statusMap] || 'todo'
+    } as Task);
+    setIsModalOpen(true);
+  };
 
   return (
     <div className="page-container">
@@ -44,83 +108,17 @@ const IssuesPage = () => {
               className="search-input"
             />
           </div>
-
-          <div className="filters-wrapper">
-            <button 
-              className="filters-button"
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              Фильтры
-            </button>
-
-            {showFilters && (
-              <div 
-                className="filters-dropdown"
-                onMouseLeave={() => setShowFilters(false)}
-              >
-                <div 
-                  className="filter-category"
-                  onMouseEnter={() => setHoveredSubmenu('boards')}
-                >
-                  Доски {activeBoard && `→ ${activeBoard}`}
-                  {hoveredSubmenu === 'boards' && (
-                    <div className="submenu">
-                      {boards.map(board => (
-                        <div
-                          key={board}
-                          className={`submenu-item ${activeBoard === board ? 'active' : ''}`}
-                          onClick={() => setActiveBoard(board)}
-                        >
-                          {board}
-                        </div>
-                      ))}
-                      <div className="submenu-divider"></div>
-                      <div 
-                        className="submenu-item"
-                        onClick={() => setActiveBoard(null)}
-                      >
-                        Сбросить
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div 
-                  className="filter-category"
-                  onMouseEnter={() => setHoveredSubmenu('statuses')}
-                >
-                  Статусы {activeStatus && `→ ${activeStatus}`}
-                  {hoveredSubmenu === 'statuses' && (
-                    <div className="submenu">
-                      {statuses.map(status => (
-                        <div
-                          key={status}
-                          className={`submenu-item ${activeStatus === status ? 'active' : ''}`}
-                          onClick={() => setActiveStatus(status)}
-                        >
-                          {status}
-                        </div>
-                      ))}
-                      <div className="submenu-divider"></div>
-                      <div 
-                        className="submenu-item"
-                        onClick={() => setActiveStatus(null)}
-                      >
-                        Сбросить
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
       <div className="tasks-grid">
         {filteredTasks.length > 0 ? (
           filteredTasks.map(task => (
-            <TaskCard key={task.id} task={task} />
+            <TaskCard 
+              key={task.id} 
+              task={task} 
+              onEditClick={handleEditClick}
+            />
           ))
         ) : (
           <div className="no-results">Задачи не найдены</div>
@@ -128,15 +126,35 @@ const IssuesPage = () => {
       </div>
 
       <nav className="page-nav">
-        <NavLink 
-          to="/create-issue" 
-          className={({ isActive }) => 
-            `nav-link create-btn ${isActive ? 'active-create' : ''}`
-          }
+        <button 
+          className="nav-link create-btn"
+          onClick={() => {
+            setEditingTask(null);
+            setIsModalOpen(true);
+          }}
         >
           Создать задачу
-        </NavLink>
+        </button>
       </nav>
+
+      <TaskModal 
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingTask(null);
+        }}
+        onTaskCreated={handleTaskCreated}
+        initialData={editingTask ? {
+          id: editingTask.id,
+          title: editingTask.title,
+          description: editingTask.description,
+          board: editingTask.board,
+          boardId: editingTask.boardId,
+          priority: editingTask.priority,
+          status: editingTask.status as 'todo' | 'in_progress' | 'done',
+          assignee: editingTask.assignee
+        } : undefined}
+      />
     </div>
   );
 };
