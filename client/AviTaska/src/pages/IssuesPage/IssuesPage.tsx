@@ -1,7 +1,29 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import TaskCard from "../../components/TaskCard/TaskCard";
 import TaskModal, { TaskData } from "../../components/TaskModal/TaskModal";
 import "./IssuesPage.css";
+
+interface Assignee {
+  id: number;
+  fullName: string;
+  email: string;
+  avatarUrl: string;
+}
+
+interface ApiTask {
+  id: number;
+  title: string;
+  description: string;
+  priority: 'Low' | 'Medium' | 'High';
+  status: 'Backlog' | 'InProgress' | 'Done';
+  assignee: Assignee;
+  boardId: number;
+  boardName: string;
+}
+
+interface ApiResponse {
+  data: ApiTask[];
+}
 
 type Task = {
   id: string;
@@ -15,32 +37,56 @@ type Task = {
 };
 
 const IssuesPage = () => {
-  const [allTasks, setAllTasks] = useState<Task[]>([
-    { 
-      id: '1', 
-      title: 'Рефакторинг кода', 
-      description: 'Необходимо провести рефакторинг основного модуля',
-      status: 'In Progress', 
-      board: "Проект 'Авто'",
-      boardId: '1',
-      assignee: 'Иванов',
-      priority: 'high'
-    },
-    { 
-      id: '2', 
-      title: 'Добавить DnD', 
-      description: 'Реализовать drag and drop для задач',
-      status: 'To Do', 
-      board: "Проект 'Дизайн'",
-      boardId: '2',
-      assignee: 'Петров',
-      priority: 'medium'
-    }
-  ]);
-
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const response = await fetch("http://localhost:8080/api/v1/tasks");
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const result: ApiResponse = await response.json();
+
+        if (!result.data || !Array.isArray(result.data)) {
+          throw new Error("Invalid data format from API");
+        }
+
+        const transformedTasks = result.data.map(task => ({
+          id: task.id.toString(),
+          title: task.title,
+          description: task.description,
+          status: mapStatus(task.status),
+          board: task.boardName,
+          boardId: task.boardId.toString(),
+          assignee: task.assignee.fullName,
+          priority: task.priority.toLowerCase() as 'low' | 'medium' | 'high'
+        }));
+
+        setAllTasks(transformedTasks);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unknown error occurred");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTasks();
+  }, []);
+
+  const mapStatus = (apiStatus: string): string => {
+    switch (apiStatus) {
+      case 'Backlog': return 'To Do';
+      case 'InProgress': return 'In Progress';
+      case 'Done': return 'Done';
+      default: return apiStatus;
+    }
+  };
 
   const filteredTasks = allTasks.filter(task => {
     const searchLower = searchQuery.toLowerCase();
@@ -51,7 +97,6 @@ const IssuesPage = () => {
   });
 
   const handleTaskCreated = (newTaskData: Omit<TaskData, 'id'>) => {
-    const boardId = newTaskData.board === "Проект 'Авто'" ? '1' : '2';
     const statusMap = {
       todo: 'To Do',
       in_progress: 'In Progress',
@@ -63,17 +108,18 @@ const IssuesPage = () => {
         task.id === editingTask.id ? { 
           ...task, 
           ...newTaskData,
-          boardId,
+          boardId: newTaskData.boardId || task.boardId,
           status: statusMap[newTaskData.status] || task.status
         } : task
       ));
     } else {
-      setAllTasks([...allTasks, {
+      const newTask: Task = {
         ...newTaskData,
         id: `${allTasks.length + 1}`,
-        boardId,
+        boardId: newTaskData.boardId || '1', // Значение по умолчанию
         status: statusMap[newTaskData.status] || 'To Do'
-      }]);
+      };
+      setAllTasks([...allTasks, newTask]);
     }
     setIsModalOpen(false);
     setEditingTask(null);
@@ -88,10 +134,19 @@ const IssuesPage = () => {
     
     setEditingTask({
       ...task,
-      status: statusMap[task.status as keyof typeof statusMap] || 'todo'
+      status: statusMap[task.status as keyof typeof statusMap] || 'todo',
+      board: task.board,
     } as Task);
     setIsModalOpen(true);
   };
+
+  if (loading) {
+    return <div className="loading-message">Загрузка задач...</div>;
+  }
+
+  if (error) {
+    return <div className="error-message">Ошибка: {error}</div>;
+  }
 
   return (
     <div className="page-container">

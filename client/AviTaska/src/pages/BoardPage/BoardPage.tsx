@@ -1,85 +1,130 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import TaskModal, { TaskData } from "../../components/TaskModal/TaskModal";
 import "./BoardPage.css";
 
-type Task = {
+interface Assignee {
+  id: number;
+  fullName: string;
+  email: string;
+  avatarUrl: string;
+}
+
+interface ApiTask {
+  id: number;
+  title: string;
+  description: string;
+  priority: 'Low' | 'Medium' | 'High';
+  status: 'Backlog' | 'InProgress' | 'Done';
+  assignee: Assignee;
+}
+
+interface ApiResponse {
+  data: ApiTask[];
+}
+
+type TaskStatus = 'todo' | 'in_progress' | 'done';
+type TaskPriority = 'low' | 'medium' | 'high';
+
+interface Task {
   id: string;
   title: string;
   description: string;
   board: string;
   boardId: string;
   assignee: string;
-  priority: 'low' | 'medium' | 'high';
-  status: 'todo' | 'in_progress' | 'done';
-};
+  priority: TaskPriority;
+  status: TaskStatus;
+}
+
+interface Column {
+  id: TaskStatus;
+  title: string;
+  tasks: Task[];
+}
 
 const BoardPage = () => {
   const { id } = useParams();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [columns, setColumns] = useState<Column[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [boardName, setBoardName] = useState("");
 
-  // Пример данных задач с полной структурой и правильными типами
-  const columns = [
-    {
-      id: "todo",
-      title: "To Do",
-      tasks: [
-        { 
-          id: "1", 
-          title: "Задача 1", 
-          description: "Описание задачи 1",
-          board: "Проект 'Авто'",
-          boardId: "1",
-          assignee: "Иванов",
-          priority: "medium" as const,
-          status: "todo" as const
-        },
-        { 
-          id: "3", 
-          title: "Задача 3", 
-          description: "Описание задачи 3",
-          board: "Проект 'Дизайн'",
-          boardId: "2",
-          assignee: "Петров",
-          priority: "high" as const,
-          status: "todo" as const
-        },
-      ]
-    },
-    {
-      id: "inprogress",
-      title: "In Progress",
-      tasks: [
-        { 
-          id: "4", 
-          title: "Задача 4", 
-          description: "Описание задачи 4",
-          board: "Проект 'Авто'",
-          boardId: "1",
-          assignee: "Сидоров",
-          priority: "low" as const,
-          status: "in_progress" as const
+  useEffect(() => {
+    const fetchBoardData = async () => {
+      try {
+        // Получаем название доски (если нужно)
+        const boardResponse = await fetch(`http://localhost:8080/api/v1/boards/${id}`);
+        const boardData = await boardResponse.json();
+        setBoardName(boardData.data.name || `Доска ${id}`);
+
+        // Получаем задачи для доски
+        const tasksResponse = await fetch(`http://localhost:8080/api/v1/boards/${id}`);
+        if (!tasksResponse.ok) {
+          throw new Error(`HTTP error! status: ${tasksResponse.status}`);
         }
-      ]
-    },
-    {
-      id: "done",
-      title: "Done",
-      tasks: [
-        { 
-          id: "2", 
-          title: "Задача 2", 
-          description: "Описание задачи 2",
-          board: "Проект 'Дизайн'",
-          boardId: "2",
-          assignee: "Петров",
-          priority: "medium" as const,
-          status: "done" as const
+        const result: ApiResponse = await tasksResponse.json();
+
+        if (!result.data || !Array.isArray(result.data)) {
+          throw new Error("Invalid data format from API");
         }
-      ]
+
+        // Преобразуем данные API в наш формат
+        const transformedTasks = result.data.map(task => ({
+          id: task.id.toString(),
+          title: task.title,
+          description: task.description,
+          board: `Доска ${id}`,
+          boardId: id || "",
+          assignee: task.assignee.fullName,
+          priority: task.priority.toLowerCase() as TaskPriority,
+          status: mapStatus(task.status)
+        }));
+
+        // Группируем задачи по статусам
+        const todoTasks = transformedTasks.filter(task => task.status === 'todo');
+        const inProgressTasks = transformedTasks.filter(task => task.status === 'in_progress');
+        const doneTasks = transformedTasks.filter(task => task.status === 'done');
+
+        setColumns([
+          {
+            id: 'todo',
+            title: 'To Do',
+            tasks: todoTasks
+          },
+          {
+            id: 'in_progress',
+            title: 'In Progress',
+            tasks: inProgressTasks
+          },
+          {
+            id: 'done',
+            title: 'Done',
+            tasks: doneTasks
+          }
+        ]);
+
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unknown error occurred");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBoardData();
+  }, [id]);
+
+  // Функция для преобразования статусов API в наши статусы
+  const mapStatus = (apiStatus: string): TaskStatus => {
+    switch (apiStatus) {
+      case 'Backlog': return 'todo';
+      case 'InProgress': return 'in_progress';
+      case 'Done': return 'done';
+      default: return 'todo';
     }
-  ];
+  };
 
   const handleTaskCreated = (updatedTask: Omit<TaskData, 'id'>) => {
     // Здесь должна быть логика обновления задачи в columns
@@ -93,10 +138,18 @@ const BoardPage = () => {
     setIsModalOpen(true);
   };
 
+  if (loading) {
+    return <div className="loading-message">Загрузка задач...</div>;
+  }
+
+  if (error) {
+    return <div className="error-message">Ошибка: {error}</div>;
+  }
+
   return (
     <div className="board-container">
       <div className="board-header">
-        <h2 className="board-title">Название проекта ({id})</h2>
+        <h2 className="board-title">{boardName}</h2>
       </div>
       
       <div className="board-content">
