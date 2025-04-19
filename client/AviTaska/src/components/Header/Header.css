@@ -17,14 +17,6 @@
   cursor: pointer;
 }
 
-.AvitoLogo {
-  margin-right: 50px;
-  font-size: 28px;
-  display: flex;
-  margin-top: 7px;
-  cursor: pointer;
-}
-
 .main-nav {
   display: flex;
   gap: 2rem;
@@ -49,19 +41,22 @@
   color: #0099f7;
 }
 
-.create-btn {
+.nav-link.create-btn {
   background-color: #00aaff;
   color: white !important;
   padding: 0.5rem 1rem;
-  border-radius: 10px;
-  transition: all 0.2s ease;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: none;
 }
 
-.create-btn:hover {
+.nav-link.create-btn:hover {
   background-color: #0099f7;
 }
 
-.create-btn.active-create {
+.nav-link.create-btn.active-create {
   background-color: #0099f7;
   box-shadow: 0 0 0 2px rgba(0, 170, 255, 0.3);
 }

@@ -15,9 +15,16 @@ type TaskModalProps = {
     assignee: string;
   };
   isFromBoard?: boolean;
+  onTaskCreated?: () => void;
 };
 
-const TaskModal = ({ isOpen, onClose, initialData, isFromBoard }: TaskModalProps) => {
+const TaskModal = ({ 
+  isOpen, 
+  onClose, 
+  initialData, 
+  isFromBoard, 
+  onTaskCreated 
+}: TaskModalProps) => {
   const location = useLocation();
   const [formData, setFormData] = useState({
     title: '',
@@ -28,11 +35,19 @@ const TaskModal = ({ isOpen, onClose, initialData, isFromBoard }: TaskModalProps
     assignee: ''
   });
 
-  // Определяем режим работы модалки
-  const isEditMode = !!initialData;
-  const isBoardPage = location.pathname.includes('/board/') || isFromBoard;
+  useEffect(() => {
+    if (!isOpen) {
+      setFormData({
+        title: '',
+        description: '',
+        board: '',
+        priority: 'medium',
+        status: 'todo',
+        assignee: ''
+      });
+    }
+  }, [isOpen]);
 
-  // Заполняем форму начальными данными
   useEffect(() => {
     if (initialData) {
       setFormData({
@@ -51,11 +66,24 @@ const TaskModal = ({ isOpen, onClose, initialData, isFromBoard }: TaskModalProps
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Здесь будет логика сохранения/обновления задачи
-    console.log('Form submitted:', formData);
-    onClose();
+    
+    try {
+      // Здесь должна быть реальная логика API
+      console.log('Task created:', formData);
+      
+      // Имитация задержки API
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      if (onTaskCreated) {
+        onTaskCreated();
+      }
+      
+      onClose();
+    } catch (error) {
+      console.error('Error creating task:', error);
+    }
   };
 
   if (!isOpen) return null;
@@ -63,7 +91,7 @@ const TaskModal = ({ isOpen, onClose, initialData, isFromBoard }: TaskModalProps
   return (
     <div className="modal-overlay">
       <div className="modal-content">
-        <h2>{isEditMode ? 'Редактирование задачи' : 'Создание задачи'}</h2>
+        <h2>{initialData ? 'Редактирование задачи' : 'Создание задачи'}</h2>
         
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -89,7 +117,7 @@ const TaskModal = ({ isOpen, onClose, initialData, isFromBoard }: TaskModalProps
 
           <div className="form-group">
             <label>Проект</label>
-            {isBoardPage ? (
+            {isFromBoard || location.pathname.includes('/board/') ? (
               <input
                 type="text"
                 value={formData.board}
@@ -154,7 +182,7 @@ const TaskModal = ({ isOpen, onClose, initialData, isFromBoard }: TaskModalProps
           </div>
 
           <div className="modal-actions">
-            {!isBoardPage && isEditMode && (
+            {!isFromBoard && initialData && (
               <NavLink 
                 to={`/board/${formData.board}`}
                 className="go-to-board-button"
@@ -164,7 +192,7 @@ const TaskModal = ({ isOpen, onClose, initialData, isFromBoard }: TaskModalProps
             )}
             
             <button type="submit" className="submit-button">
-              {isEditMode ? 'Обновить' : 'Создать'}
+              {initialData ? 'Обновить' : 'Создать'}
             </button>
           </div>
         </form>
