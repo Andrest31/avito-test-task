@@ -43,6 +43,12 @@ const IssuesPage = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Фильтры
+  const [activeBoard, setActiveBoard] = useState<string | null>(null);
+  const [activeStatus, setActiveStatus] = useState<string | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [hoveredSubmenu, setHoveredSubmenu] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -88,12 +94,18 @@ const IssuesPage = () => {
     }
   };
 
+  // Получаем уникальные доски и статусы для фильтров
+  const boards = [...new Set(allTasks.map(task => task.board))];
+  const statuses = [...new Set(allTasks.map(task => task.status))];
+
   const filteredTasks = allTasks.filter(task => {
     const searchLower = searchQuery.toLowerCase();
-    return (
+    const matchesSearch = 
       task.title.toLowerCase().includes(searchLower) || 
-      task.assignee.toLowerCase().includes(searchLower)
-    );
+      task.assignee.toLowerCase().includes(searchLower);
+    const matchesBoard = !activeBoard || task.board === activeBoard;
+    const matchesStatus = !activeStatus || task.status === activeStatus;
+    return matchesSearch && matchesBoard && matchesStatus;
   });
 
   const handleTaskCreated = (newTaskData: Omit<TaskData, 'id'>) => {
@@ -116,7 +128,7 @@ const IssuesPage = () => {
       const newTask: Task = {
         ...newTaskData,
         id: `${allTasks.length + 1}`,
-        boardId: newTaskData.boardId || '1', // Значение по умолчанию
+        boardId: newTaskData.boardId || '1',
         status: statusMap[newTaskData.status] || 'To Do'
       };
       setAllTasks([...allTasks, newTask]);
@@ -162,6 +174,76 @@ const IssuesPage = () => {
               placeholder="Поиск по задачам..."
               className="search-input"
             />
+          </div>
+
+          <div className="filters-wrapper">
+            <button 
+              className="filters-button"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              Фильтры
+            </button>
+
+            {showFilters && (
+              <div 
+                className="filters-dropdown"
+                onMouseLeave={() => setShowFilters(false)}
+              >
+                <div 
+                  className="filter-category"
+                  onMouseEnter={() => setHoveredSubmenu('boards')}
+                >
+                  Доски {activeBoard && `→ ${activeBoard}`}
+                  {hoveredSubmenu === 'boards' && (
+                    <div className="submenu">
+                      {boards.map(board => (
+                        <div
+                          key={board}
+                          className={`submenu-item ${activeBoard === board ? 'active' : ''}`}
+                          onClick={() => setActiveBoard(board)}
+                        >
+                          {board}
+                        </div>
+                      ))}
+                      <div className="submenu-divider"></div>
+                      <div 
+                        className="submenu-item"
+                        onClick={() => setActiveBoard(null)}
+                      >
+                        Сбросить
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div 
+                  className="filter-category"
+                  onMouseEnter={() => setHoveredSubmenu('statuses')}
+                >
+                  Статусы {activeStatus && `→ ${activeStatus}`}
+                  {hoveredSubmenu === 'statuses' && (
+                    <div className="submenu">
+                      {statuses.map(status => (
+                        <div
+                          key={status}
+                          className={`submenu-item ${activeStatus === status ? 'active' : ''}`}
+                          onClick={() => setActiveStatus(status)}
+                        >
+                          {status}
+                        </div>
+                      ))}
+                      <div className="submenu-divider"></div>
+                      <div 
+                        className="submenu-item"
+                        onClick={() => setActiveStatus(null)}
+                      >
+                        Сбросить
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
