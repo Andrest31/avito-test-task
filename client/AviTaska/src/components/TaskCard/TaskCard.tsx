@@ -1,15 +1,14 @@
-// src/components/TaskCard/TaskCard.tsx
 import { Link } from 'react-router-dom';
 import './TaskCard.css';
 
-// Экспортируем тип Task
 export type Task = {
   id: string;
   title: string;
   description?: string;
   status?: string;
   board?: string;
-  boardId?: string; // Добавляем отсутствующее свойство
+  boardId?: string;
+  assignee?: string; // Добавляем поле исполнителя
   priority?: 'low' | 'medium' | 'high';
 };
 
@@ -39,9 +38,16 @@ const TaskCard = ({ task }: { task: Task }) => {
       )}
       
       <div className="task-meta">
-        {task.status && (
-          <span className="task-status">{task.status}</span>
-        )}
+        <div className="meta-left">
+          {task.status && (
+            <span className="task-status">{task.status}</span>
+          )}
+          {task.assignee && (
+            <span className="assignee-label">Исполнитель: {task.assignee}</span>
+          )}
+        </div>
+        
+        
         {(task.board || task.boardId) && (
           <Link 
             to={`/board/${task.boardId || '1'}`} 
