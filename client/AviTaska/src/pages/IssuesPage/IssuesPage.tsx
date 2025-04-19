@@ -22,7 +22,6 @@ const IssuesPage = () => {
     <div className="page-container">
       <div className="page-header">
         <h1 className="page-title">Все задачи</h1>
-        <button className="create-button">+ Создать задачу</button>
       </div>
       <div className="tasks-grid">
         {tasks.map(task => (

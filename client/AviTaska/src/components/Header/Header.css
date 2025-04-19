@@ -1,0 +1,54 @@
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    background-color: #fff;
+    border-bottom: 1px solid #eaeaea;
+    height: 100px;
+  }
+  
+  .logo {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-left: 210px;
+    align-content: center;
+    cursor: pointer;
+  }
+  .AvitoLogo{
+    margin-right: 50px;
+    font-size: 28px;
+    display: flex;
+    margin-top:7px;
+    cursor: pointer;
+}
+  .main-nav {
+    display: flex;
+    gap: 2rem;
+  }
+  
+  .nav-link {
+    color: #34495e;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 16px;
+    padding: 0.5rem 0;
+    border-bottom: 2px solid transparent;
+  }
+  
+  .nav-link:hover {
+    border-bottom: 2px solid #0099f7;
+  }
+  
+  .create-btn {
+    background-color: #00aaff;
+    color: white !important;
+    padding: 0.5rem 1rem;
+    border-radius: 10px;
+  }
+  
+  .create-btn:hover {
+    background-color: #0099f7;
+    border-bottom: 2px solid transparent;
+  }
