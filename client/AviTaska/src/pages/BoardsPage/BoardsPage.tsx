@@ -2,10 +2,10 @@ import "./BoardsPage.css";
 
 const BoardsPage = () => {
   const projects = [
-    { id: 1, name: "Название проекта 1", tasksCount: 5, lastUpdated: "2 часа назад" },
-    { id: 2, name: "Название проекта 2", tasksCount: 3, lastUpdated: "5 часов назад" },
-    { id: 3, name: "Мобильное приложение", tasksCount: 12, lastUpdated: "вчера" },
-    { id: 4, name: "Веб-сайт компании", tasksCount: 8, lastUpdated: "3 дня назад" },
+    { id: 1, name: "Название проекта 1", tasksCount: 5, description: "Оптимизация серверных методов" },
+    { id: 2, name: "Название проекта 2", tasksCount: 3, description: "Улучшение Core Web Vitals" },
+    { id: 3, name: "Мобильное приложение", tasksCount: 12, description: "Оптимизация серверных методов" },
+    { id: 4, name: "Веб-сайт компании", tasksCount: 8, description: "Улучшение Core Web Vitals" },
   ];
 
   return (
@@ -19,11 +19,13 @@ const BoardsPage = () => {
               <span className="tasks-count">{project.tasksCount} задач</span>
             </div>
             <div className="project-meta">
-              <span className="last-updated">Обновлено: {project.lastUpdated}</span>
+              <span className="description">{project.description}</span>
             </div>
-            <a href={`/board/${project.id}`} className="project-link">
-              Перейти к доске
-            </a>
+            <div className="project-footer">
+              <a href={`/board/${project.id}`} className="project-link">
+                Перейти к доске
+              </a>
+            </div>
           </div>
         ))}
       </div>

@@ -13,8 +13,8 @@
 
 .projects-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 2rem;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
 }
 
 .project-card {
@@ -23,11 +23,10 @@
   padding: 2rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
-  min-height: 254px;
+  min-height: 200px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  min-width: 430px;
+  min-width: 800px;
 }
 
 .project-card:hover {
@@ -60,12 +59,18 @@
 }
 
 .project-meta {
-  margin: 1rem 0 2rem;
+  margin: 1rem 0;
 }
 
 .last-updated {
   color: #7f8c8d;
   font-size: 0.95rem;
+}
+
+.project-footer {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .project-link {
@@ -91,6 +96,13 @@
 
 .project-link:hover::after {
   transform: translateX(3px);
+}
+
+@media (max-width: 900px) {
+  .project-card {
+    min-width: auto;
+    width: 100%;
+  }
 }
 
 @media (max-width: 768px) {
