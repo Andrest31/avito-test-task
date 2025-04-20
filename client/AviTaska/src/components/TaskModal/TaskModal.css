@@ -59,10 +59,11 @@
   }
   
   .modal-actions {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 20px;
-  }
+  display: flex;
+  justify-content: flex-end; /* Всегда выравниваем по правому краю */
+  margin-top: 20px;
+  gap: 188px; /* Добавляем промежуток между кнопками */
+}
   
   .go-to-board-button {
     padding: 10px 15px;
