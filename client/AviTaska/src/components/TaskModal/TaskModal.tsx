@@ -24,22 +24,6 @@ interface Assignee {
   fullName: string;
 }
 
-interface ApiTaskResponse {
-  assignee: {
-    id: number;
-    fullName: string;
-    email: string;
-    avatarUrl: string;
-  };
-  boardId: number;
-  boardName: string;
-  description: string;
-  id: number;
-  priority: 'Low' | 'Medium' | 'High';
-  status: 'Backlog' | 'InProgress' | 'Done';
-  title: string;
-}
-
 type TaskModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -68,48 +52,12 @@ const TaskModal = ({
     assigneeId: ''
   });
   const [loading, setLoading] = useState(false);
-  const [taskLoading, setTaskLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [boards, setBoards] = useState<Board[]>([]);
   const [assignees, setAssignees] = useState<Assignee[]>([]);
 
   const isCalledFromBoardPage = isFromBoard || location.pathname.includes('/board/');
 
-  // Загрузка данных задачи по ID при открытии модального окна
-  useEffect(() => {
-    const fetchTaskData = async () => {
-      if (isOpen && initialData?.id) {
-        setTaskLoading(true);
-        try {
-          const response = await fetch(`http://localhost:8080/api/v1/tasks/${initialData.id}`);
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          const taskData: ApiTaskResponse = await response.json();
-
-          setFormData({
-            title: taskData.title,
-            description: taskData.description,
-            board: taskData.boardName,
-            boardId: taskData.boardId.toString(),
-            priority: taskData.priority.toLowerCase() as 'low' | 'medium' | 'high',
-            status: mapStatusToInternal(taskData.status),
-            assignee: taskData.assignee.fullName,
-            assigneeId: taskData.assignee.id.toString()
-          });
-        } catch (err) {
-          console.error('Ошибка загрузки данных задачи:', err);
-          setError('Не удалось загрузить данные задачи');
-        } finally {
-          setTaskLoading(false);
-        }
-      }
-    };
-
-    fetchTaskData();
-  }, [isOpen, initialData?.id]);
-
-  // Загрузка списка досок и исполнителей
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -134,25 +82,29 @@ const TaskModal = ({
     }
   }, [isOpen, isCalledFromBoardPage]);
 
-  // Преобразование статусов API во внутренний формат
-  const mapStatusToInternal = (apiStatus: string): 'todo' | 'in_progress' | 'done' => {
-    switch (apiStatus) {
-      case 'Backlog': return 'todo';
-      case 'InProgress': return 'in_progress';
-      case 'Done': return 'done';
-      default: return 'todo';
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        title: initialData.title,
+        description: initialData.description,
+        board: initialData.board,
+        priority: initialData.priority,
+        status: initialData.status,
+        assignee: initialData.assignee,
+        assigneeId: initialData.assigneeId
+      });
+    } else if (!isOpen) {
+      setFormData({
+        title: '',
+        description: '',
+        board: initialBoard,
+        priority: 'medium',
+        status: 'todo',
+        assignee: '',
+        assigneeId: ''
+      });
     }
-  };
-
-  // Преобразование статусов в формат API
-  const mapStatusToApi = (status: string): string => {
-    switch (status) {
-      case 'todo': return 'Backlog';
-      case 'in_progress': return 'InProgress';
-      case 'done': return 'Done';
-      default: return status;
-    }
-  };
+  }, [isOpen, initialData, initialBoard]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -169,6 +121,15 @@ const TaskModal = ({
       assignee: e.target.value,
       assigneeId 
     }));
+  };
+
+  const mapStatusToApi = (status: string): string => {
+    switch (status) {
+      case 'todo': return 'Backlog';
+      case 'in_progress': return 'InProgress';
+      case 'done': return 'Done';
+      default: return status;
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -245,137 +206,133 @@ const TaskModal = ({
         
         {error && <div className="error-message">{error}</div>}
 
-        {taskLoading ? (
-          <div className="loading-message">Загрузка данных задачи...</div>
-        ) : (
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label>Название</label>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Название</label>
+            <input
+              type="text"
+              name="title"
+              value={formData.title}
+              onChange={handleChange}
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Описание</label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              rows={4}
+              disabled={loading}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Проект</label>
+            {isCalledFromBoardPage ? (
               <input
                 type="text"
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-                required
-                disabled={loading}
+                value={formData.board}
+                readOnly
+                className="read-only"
               />
-            </div>
-
-            <div className="form-group">
-              <label>Описание</label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows={4}
-                disabled={loading}
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Проект</label>
-              {isCalledFromBoardPage ? (
-                <input
-                  type="text"
-                  value={formData.board}
-                  readOnly
-                  className="read-only"
-                />
-              ) : (
-                <select
-                  name="board"
-                  value={formData.board}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                >
-                  <option value="">Выберите проект</option>
-                  {boards.map(board => (
-                    <option key={board.id} value={board.name}>
-                      {board.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-
-            <div className="form-group">
-              <label>Приоритет</label>
+            ) : (
               <select
-                name="priority"
-                value={formData.priority}
+                name="board"
+                value={formData.board}
                 onChange={handleChange}
                 required
                 disabled={loading}
               >
-                <option value="low">Низкий</option>
-                <option value="medium">Средний</option>
-                <option value="high">Высокий</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>Статус</label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                required
-                disabled={loading}
-              >
-                <option value="todo">To Do</option>
-                <option value="in_progress">In Progress</option>
-                <option value="done">Done</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>Исполнитель</label>
-              <select
-                name="assignee"
-                value={formData.assignee}
-                onChange={handleAssigneeChange}
-                required
-                disabled={loading}
-              >
-                <option value="">Выберите исполнителя</option>
-                {assignees.map(user => (
-                  <option 
-                    key={user.id} 
-                    value={user.fullName}
-                    data-id={user.id}
-                  >
-                    {user.fullName}
+                <option value="">Выберите проект</option>
+                {boards.map(board => (
+                  <option key={board.id} value={board.name}>
+                    {board.name}
                   </option>
                 ))}
               </select>
-            </div>
+            )}
+          </div>
 
-            <div className="modal-actions">
-              {!isCalledFromBoardPage && initialData && (
-                <NavLink 
-                  to={`/board/${formData.boardId}?taskId=${initialData.id}`}
-                  className="go-to-board-button"
+          <div className="form-group">
+            <label>Приоритет</label>
+            <select
+              name="priority"
+              value={formData.priority}
+              onChange={handleChange}
+              required
+              disabled={loading}
+            >
+              <option value="low">Низкий</option>
+              <option value="medium">Средний</option>
+              <option value="high">Высокий</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Статус</label>
+            <select
+              name="status"
+              value={formData.status}
+              onChange={handleChange}
+              required
+              disabled={loading}
+            >
+              <option value="todo">To Do</option>
+              <option value="in_progress">In Progress</option>
+              <option value="done">Done</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Исполнитель</label>
+            <select
+              name="assignee"
+              value={formData.assignee}
+              onChange={handleAssigneeChange}
+              required
+              disabled={loading}
+            >
+              <option value="">Выберите исполнителя</option>
+              {assignees.map(user => (
+                <option 
+                  key={user.id} 
+                  value={user.fullName}
+                  data-id={user.id}
                 >
-                  Перейти на доску
-                </NavLink>
-              )}
-              
-              <button 
-                type="submit" 
-                className="submit-button"
-                disabled={loading || taskLoading}
+                  {user.fullName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="modal-actions">
+            {!isCalledFromBoardPage && initialData && (
+              <NavLink 
+                to={`/board/${initialData.boardId}?taskId=${initialData.id}`}
+                className="go-to-board-button"
               >
-                {loading ? 'Отправка...' : initialData ? 'Обновить' : 'Создать'}
-              </button>
-            </div>
-          </form>
-        )}
+                Перейти на доску
+              </NavLink>
+            )}
+            
+            <button 
+              type="submit" 
+              className="submit-button"
+              disabled={loading}
+            >
+              {loading ? 'Отправка...' : initialData ? 'Обновить' : 'Создать'}
+            </button>
+          </div>
+        </form>
 
         <button 
           className="close-button" 
           onClick={onClose}
-          disabled={loading || taskLoading}
+          disabled={loading}
         >
           ×
         </button>
