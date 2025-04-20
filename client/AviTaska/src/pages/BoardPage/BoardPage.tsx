@@ -19,8 +19,19 @@ interface ApiTask {
   assignee: Assignee;
 }
 
+interface BoardInfo {
+  id: number;
+  name: string;
+  description: string;
+  taskCount: number;
+}
+
 interface ApiResponse {
   data: ApiTask[];
+}
+
+interface BoardsResponse {
+  data: BoardInfo[];
 }
 
 type TaskStatus = 'todo' | 'in_progress' | 'done';
@@ -52,14 +63,31 @@ const BoardPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [boardName, setBoardName] = useState("");
+  const [allBoards, setAllBoards] = useState<BoardInfo[]>([]);
+
+  // Загружаем список всех досок один раз при монтировании
+  useEffect(() => {
+    const fetchBoards = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/api/v1/boards');
+        if (!response.ok) throw new Error('Failed to fetch boards');
+        const result: BoardsResponse = await response.json();
+        setAllBoards(result.data || []);
+      } catch (err) {
+        console.error('Error fetching boards:', err);
+      }
+    };
+
+    fetchBoards();
+  }, []);
 
   useEffect(() => {
     const fetchBoardData = async () => {
       try {
-        // Получаем название доски
-        const boardResponse = await fetch(`http://localhost:8080/api/v1/boards/${id}`);
-        const boardData = await boardResponse.json();
-        setBoardName(boardData.data.name || `Доска ${id}`);
+        // Получаем название доски из списка всех досок
+        const boardInfo = allBoards.find(b => b.id.toString() === id);
+        const currentBoardName = boardInfo?.name || `Доска ${id}`;
+        setBoardName(currentBoardName);
 
         // Получаем задачи для доски
         const tasksResponse = await fetch(`http://localhost:8080/api/v1/boards/${id}`);
@@ -76,7 +104,7 @@ const BoardPage = () => {
           id: task.id.toString(),
           title: task.title,
           description: task.description,
-          board: boardData.data.name || `Доска ${id}`,
+          board: currentBoardName,
           boardId: id || "",
           assignee: task.assignee.fullName,
           priority: task.priority.toLowerCase() as TaskPriority,
@@ -123,8 +151,10 @@ const BoardPage = () => {
       }
     };
 
-    fetchBoardData();
-  }, [id, searchParams]);
+    if (id) {
+      fetchBoardData();
+    }
+  }, [id, searchParams, allBoards]);
 
   const mapStatus = (apiStatus: string): TaskStatus => {
     switch (apiStatus) {
