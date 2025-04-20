@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import TaskModal, { TaskData } from "../../components/TaskModal/TaskModal";
 import "./BoardPage.css";
 
@@ -45,6 +45,7 @@ interface Column {
 
 const BoardPage = () => {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [columns, setColumns] = useState<Column[]>([]);
@@ -55,7 +56,7 @@ const BoardPage = () => {
   useEffect(() => {
     const fetchBoardData = async () => {
       try {
-        // Получаем название доски (если нужно)
+        // Получаем название доски
         const boardResponse = await fetch(`http://localhost:8080/api/v1/boards/${id}`);
         const boardData = await boardResponse.json();
         setBoardName(boardData.data.name || `Доска ${id}`);
@@ -71,17 +72,26 @@ const BoardPage = () => {
           throw new Error("Invalid data format from API");
         }
 
-        // Преобразуем данные API в наш формат
         const transformedTasks = result.data.map(task => ({
           id: task.id.toString(),
           title: task.title,
           description: task.description,
-          board: `Доска ${id}`,
+          board: boardData.data.name || `Доска ${id}`,
           boardId: id || "",
           assignee: task.assignee.fullName,
           priority: task.priority.toLowerCase() as TaskPriority,
           status: mapStatus(task.status)
         }));
+
+        // Проверяем, есть ли параметр taskId в URL
+        const taskId = searchParams.get('taskId');
+        if (taskId) {
+          const taskToEdit = transformedTasks.find(t => t.id === taskId);
+          if (taskToEdit) {
+            setEditingTask(taskToEdit);
+            setIsModalOpen(true);
+          }
+        }
 
         // Группируем задачи по статусам
         const todoTasks = transformedTasks.filter(task => task.status === 'todo');
@@ -114,9 +124,8 @@ const BoardPage = () => {
     };
 
     fetchBoardData();
-  }, [id]);
+  }, [id, searchParams]);
 
-  // Функция для преобразования статусов API в наши статусы
   const mapStatus = (apiStatus: string): TaskStatus => {
     switch (apiStatus) {
       case 'Backlog': return 'todo';
@@ -127,7 +136,6 @@ const BoardPage = () => {
   };
 
   const handleTaskCreated = (updatedTask: Omit<TaskData, 'id'>) => {
-    // Здесь должна быть логика обновления задачи в columns
     console.log('Задача обновлена:', updatedTask);
     setIsModalOpen(false);
     setEditingTask(null);
@@ -188,6 +196,7 @@ const BoardPage = () => {
         onClose={() => {
           setIsModalOpen(false);
           setEditingTask(null);
+          window.history.replaceState({}, '', `/board/${id}`);
         }}
         onTaskCreated={handleTaskCreated}
         initialData={editingTask ? {

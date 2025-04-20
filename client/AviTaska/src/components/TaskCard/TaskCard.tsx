@@ -14,7 +14,7 @@ export type Task = {
 
 type TaskCardProps = {
   task: Task;
-  onEditClick: (task: Task) => void;
+  onEditClick?: (task: Task) => void;
 };
 
 const TaskCard = ({ task, onEditClick }: TaskCardProps) => {
@@ -47,8 +47,14 @@ const TaskCard = ({ task, onEditClick }: TaskCardProps) => {
         </div>
         
         <Link 
-          to={`/board/${task.boardId}`} 
+          to={`/board/${task.boardId}?taskId=${task.id}`}
           className="board-link"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onEditClick) {
+              onEditClick(task);
+            }
+          }}
         >
           Доска: {task.board}
         </Link>
@@ -56,7 +62,10 @@ const TaskCard = ({ task, onEditClick }: TaskCardProps) => {
       
       <div className="task-actions">
         <button 
-          onClick={() => onEditClick(task)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onEditClick?.(task);
+          }}
           className="edit-button"
         >
           Редактировать

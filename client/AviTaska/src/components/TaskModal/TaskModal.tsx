@@ -56,14 +56,11 @@ const TaskModal = ({
   const [boards, setBoards] = useState<Board[]>([]);
   const [assignees, setAssignees] = useState<Assignee[]>([]);
 
-  // Определяем, вызвано ли модальное окно со страницы доски
   const isCalledFromBoardPage = isFromBoard || location.pathname.includes('/board/');
 
-  // Загрузка списка проектов и исполнителей
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Загрузка списка досок (только если не со страницы доски)
         if (!isCalledFromBoardPage) {
           const boardsResponse = await fetch('http://localhost:8080/api/v1/boards');
           if (!boardsResponse.ok) throw new Error('Ошибка загрузки досок');
@@ -71,7 +68,6 @@ const TaskModal = ({
           setBoards(boardsData.data || []);
         }
 
-        // Загрузка списка исполнителей
         const assigneesResponse = await fetch('http://localhost:8080/api/v1/users');
         if (!assigneesResponse.ok) throw new Error('Ошибка загрузки исполнителей');
         const assigneesData = await assigneesResponse.json();
@@ -157,7 +153,6 @@ const TaskModal = ({
       };
 
       if (initialData && initialData.id) {
-        // Обновление существующей задачи
         const response = await fetch(`http://localhost:8080/api/v1/tasks/update/${initialData.id}`, {
           method: 'PUT',
           headers: {
@@ -170,7 +165,6 @@ const TaskModal = ({
           throw new Error(`Ошибка при обновлении задачи: ${response.status}`);
         }
       } else {
-        // Создание новой задачи
         const boardId = isCalledFromBoardPage 
           ? location.pathname.split('/').pop() 
           : boards.find(b => b.name === formData.board)?.id;
@@ -318,7 +312,7 @@ const TaskModal = ({
           <div className="modal-actions">
             {!isCalledFromBoardPage && initialData && (
               <NavLink 
-                to={`/board/${initialData.boardId}`}
+                to={`/board/${initialData.boardId}?taskId=${initialData.id}`}
                 className="go-to-board-button"
               >
                 Перейти на доску

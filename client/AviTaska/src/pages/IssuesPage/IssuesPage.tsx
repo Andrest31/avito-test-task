@@ -44,7 +44,6 @@ const IssuesPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Фильтры
   const [activeBoard, setActiveBoard] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -94,7 +93,6 @@ const IssuesPage = () => {
     }
   };
 
-  // Получаем уникальные доски и статусы для фильтров
   const boards = [...new Set(allTasks.map(task => task.board))];
   const statuses = [...new Set(allTasks.map(task => task.status))];
 
