@@ -93,7 +93,6 @@ const BoardPage = () => {
 
       updateColumns(transformedTasks);
       
-      // Check for taskId in URL
       const taskId = searchParams.get('taskId');
       if (taskId) {
         const taskToEdit = transformedTasks.find(t => t.id === taskId);
@@ -151,27 +150,41 @@ const BoardPage = () => {
 
   const handleTaskCreated = (updatedTask: TaskData) => {
     if (updatedTask.id) {
-      // Update existing task
-      setColumns(prevColumns => 
-        prevColumns.map(column => ({
+      // Убедимся, что id точно строка
+      const taskId = updatedTask.id.toString();
+      
+      setColumns(prevColumns => {
+        // 1. Удаляем задачу из всех колонок
+        const columnsWithoutTask = prevColumns.map(column => ({
           ...column,
-          tasks: column.tasks.map(task => 
-            task.id === updatedTask.id ? { 
-              ...task,
-              title: updatedTask.title,
-              description: updatedTask.description,
-              priority: updatedTask.priority,
-              status: updatedTask.status,
-              assignee: updatedTask.assignee
-            } : task
-          )
-        }))
-      );
-    } else {
-      // Add new task (if needed)
-      // ...
+          tasks: column.tasks.filter(task => task.id !== taskId)
+        }));
+  
+        // 2. Добавляем обновленную задачу в нужную колонку
+        return columnsWithoutTask.map(column => {
+          if (column.id === updatedTask.status) {
+            return {
+              ...column,
+              tasks: [
+                ...column.tasks,
+                {
+                  id: taskId,
+                  title: updatedTask.title,
+                  description: updatedTask.description,
+                  board: updatedTask.board || boardName,
+                  boardId: updatedTask.boardId || id || "",
+                  assignee: updatedTask.assignee,
+                  priority: updatedTask.priority,
+                  status: updatedTask.status
+                } as Task // Явное приведение типа
+              ]
+            };
+          }
+          return column;
+        });
+      });
     }
-
+  
     setIsModalOpen(false);
     setEditingTask(null);
   };
@@ -205,11 +218,11 @@ const BoardPage = () => {
                     <h4>{task.title}</h4>
                     <p>{task.description}</p>
                     <div className="task-meta">
-                    <span 
-                        className="task-priority"
-                        data-priority={task.priority}
-                      >                        
-                      {task.priority}
+                      <span 
+                          className="task-priority"
+                          data-priority={task.priority}                      
+                          >
+                        {task.priority}
                       </span>
                       <span className="task-assignee">{task.assignee}</span>
                     </div>
