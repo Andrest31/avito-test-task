@@ -11,7 +11,18 @@ export type TaskData = {
   priority: 'low' | 'medium' | 'high';
   status: 'todo' | 'in_progress' | 'done';
   assignee: string;
+  assigneeId?: string;
 };
+
+interface Board {
+  id: number;
+  name: string;
+}
+
+interface Assignee {
+  id: number;
+  fullName: string;
+}
 
 type TaskModalProps = {
   isOpen: boolean;
@@ -26,21 +37,54 @@ const TaskModal = ({
   isOpen, 
   onClose, 
   initialData, 
-  isFromBoard, 
-  initialBoard,
+  isFromBoard = false, 
+  initialBoard = '',
   onTaskCreated 
 }: TaskModalProps) => {
   const location = useLocation();
   const [formData, setFormData] = useState<Omit<TaskData, 'id'>>({
     title: '',
     description: '',
-    board: initialBoard || '',
+    board: initialBoard,
     priority: 'medium',
     status: 'todo',
-    assignee: ''
+    assignee: '',
+    assigneeId: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [boards, setBoards] = useState<Board[]>([]);
+  const [assignees, setAssignees] = useState<Assignee[]>([]);
+
+  // Определяем, вызвано ли модальное окно со страницы доски
+  const isCalledFromBoardPage = isFromBoard || location.pathname.includes('/board/');
+
+  // Загрузка списка проектов и исполнителей
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Загрузка списка досок (только если не со страницы доски)
+        if (!isCalledFromBoardPage) {
+          const boardsResponse = await fetch('http://localhost:8080/api/v1/boards');
+          if (!boardsResponse.ok) throw new Error('Ошибка загрузки досок');
+          const boardsData = await boardsResponse.json();
+          setBoards(boardsData.data || []);
+        }
+
+        // Загрузка списка исполнителей
+        const assigneesResponse = await fetch('http://localhost:8080/api/v1/users');
+        if (!assigneesResponse.ok) throw new Error('Ошибка загрузки исполнителей');
+        const assigneesData = await assigneesResponse.json();
+        setAssignees(assigneesData.data || []);
+      } catch (err) {
+        console.error('Ошибка загрузки данных:', err);
+      }
+    };
+
+    if (isOpen) {
+      fetchData();
+    }
+  }, [isOpen, isCalledFromBoardPage]);
 
   useEffect(() => {
     if (initialData) {
@@ -50,16 +94,18 @@ const TaskModal = ({
         board: initialData.board,
         priority: initialData.priority,
         status: initialData.status,
-        assignee: initialData.assignee
+        assignee: initialData.assignee,
+        assigneeId: initialData.assigneeId
       });
     } else if (!isOpen) {
       setFormData({
         title: '',
         description: '',
-        board: initialBoard || '',
+        board: initialBoard,
         priority: 'medium',
         status: 'todo',
-        assignee: ''
+        assignee: '',
+        assigneeId: ''
       });
     }
   }, [isOpen, initialData, initialBoard]);
@@ -71,30 +117,65 @@ const TaskModal = ({
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleAssigneeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedOption = e.target.selectedOptions[0];
+    const assigneeId = selectedOption.dataset.id || '';
+    setFormData(prev => ({ 
+      ...prev, 
+      assignee: e.target.value,
+      assigneeId 
+    }));
+  };
+
+  const mapStatusToApi = (status: string): string => {
+    switch (status) {
+      case 'todo': return 'Backlog';
+      case 'in_progress': return 'InProgress';
+      case 'done': return 'Done';
+      default: return status;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      if (!initialData) {
+      const priorityMap = {
+        low: 'Low',
+        medium: 'Medium',
+        high: 'High'
+      };
+
+      const taskPayload = {
+        title: formData.title,
+        description: formData.description,
+        priority: priorityMap[formData.priority],
+        status: mapStatusToApi(formData.status),
+        assigneeId: formData.assigneeId ? parseInt(formData.assigneeId) : 0
+      };
+
+      if (initialData && initialData.id) {
+        // Обновление существующей задачи
+        const response = await fetch(`http://localhost:8080/api/v1/tasks/update/${initialData.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(taskPayload)
+        });
+
+        if (!response.ok) {
+          throw new Error(`Ошибка при обновлении задачи: ${response.status}`);
+        }
+      } else {
         // Создание новой задачи
-        const priorityMap = {
-          low: 'Low',
-          medium: 'Medium',
-          high: 'High'
-        };
-
-        const assigneeMap = {
-          'Иванов': 1,
-          'Петров': 2,
-          'Сидоров': 3
-        };
-
-        const boardMap = {
-          "Проект 'Авто'": 1,
-          "Проект 'Дизайн'": 2
-        };
+        const boardId = isCalledFromBoardPage 
+          ? location.pathname.split('/').pop() 
+          : boards.find(b => b.name === formData.board)?.id;
+        
+        if (!boardId) throw new Error('Не выбран проект');
 
         const response = await fetch('http://localhost:8080/api/v1/tasks/create', {
           method: 'POST',
@@ -102,28 +183,21 @@ const TaskModal = ({
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            title: formData.title,
-            description: formData.description,
-            boardId: boardMap[formData.board as keyof typeof boardMap] || 1,
-            priority: priorityMap[formData.priority],
-            assigneeId: assigneeMap[formData.assignee as keyof typeof assigneeMap] || 1
+            ...taskPayload,
+            boardId
           })
         });
 
         if (!response.ok) {
           throw new Error(`Ошибка при создании задачи: ${response.status}`);
         }
-
-        const createdTask = await response.json();
-        console.log('Задача создана:', createdTask);
       }
 
-      // Вызываем колбэк для обновления UI
       onTaskCreated(formData);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
-      console.error('Ошибка при создании задачи:', err);
+      console.error('Ошибка:', err);
     } finally {
       setLoading(false);
     }
@@ -164,7 +238,7 @@ const TaskModal = ({
 
           <div className="form-group">
             <label>Проект</label>
-            {isFromBoard || location.pathname.includes('/board/') ? (
+            {isCalledFromBoardPage ? (
               <input
                 type="text"
                 value={formData.board}
@@ -180,8 +254,11 @@ const TaskModal = ({
                 disabled={loading}
               >
                 <option value="">Выберите проект</option>
-                <option value="Проект 'Авто'">Проект "Авто"</option>
-                <option value="Проект 'Дизайн'">Проект "Дизайн"</option>
+                {boards.map(board => (
+                  <option key={board.id} value={board.name}>
+                    {board.name}
+                  </option>
+                ))}
               </select>
             )}
           </div>
@@ -221,21 +298,27 @@ const TaskModal = ({
             <select
               name="assignee"
               value={formData.assignee}
-              onChange={handleChange}
+              onChange={handleAssigneeChange}
               required
               disabled={loading}
             >
               <option value="">Выберите исполнителя</option>
-              <option value="Иванов">Иванов</option>
-              <option value="Петров">Петров</option>
-              <option value="Сидоров">Сидоров</option>
+              {assignees.map(user => (
+                <option 
+                  key={user.id} 
+                  value={user.fullName}
+                  data-id={user.id}
+                >
+                  {user.fullName}
+                </option>
+              ))}
             </select>
           </div>
 
           <div className="modal-actions">
-            {initialData && !isFromBoard && !location.pathname.includes('/board/') && (
+            {!isCalledFromBoardPage && initialData && (
               <NavLink 
-                to={`/board/${formData.board === "Проект 'Авто'" ? '1' : '2'}`}
+                to={`/board/${initialData.boardId}`}
                 className="go-to-board-button"
               >
                 Перейти на доску
