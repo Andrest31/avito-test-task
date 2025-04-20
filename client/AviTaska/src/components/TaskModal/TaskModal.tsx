@@ -39,6 +39,8 @@ const TaskModal = ({
     status: 'todo',
     assignee: ''
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialData) {
@@ -69,10 +71,62 @@ const TaskModal = ({
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onTaskCreated(formData);
-    onClose();
+    setLoading(true);
+    setError(null);
+
+    try {
+      if (!initialData) {
+        // Создание новой задачи
+        const priorityMap = {
+          low: 'Low',
+          medium: 'Medium',
+          high: 'High'
+        };
+
+        const assigneeMap = {
+          'Иванов': 1,
+          'Петров': 2,
+          'Сидоров': 3
+        };
+
+        const boardMap = {
+          "Проект 'Авто'": 1,
+          "Проект 'Дизайн'": 2
+        };
+
+        const response = await fetch('http://localhost:8080/api/v1/tasks/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: formData.title,
+            description: formData.description,
+            boardId: boardMap[formData.board as keyof typeof boardMap] || 1,
+            priority: priorityMap[formData.priority],
+            assigneeId: assigneeMap[formData.assignee as keyof typeof assigneeMap] || 1
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Ошибка при создании задачи: ${response.status}`);
+        }
+
+        const createdTask = await response.json();
+        console.log('Задача создана:', createdTask);
+      }
+
+      // Вызываем колбэк для обновления UI
+      onTaskCreated(formData);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
+      console.error('Ошибка при создании задачи:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -82,6 +136,8 @@ const TaskModal = ({
       <div className="modal-content">
         <h2>{initialData ? 'Редактирование задачи' : 'Создание задачи'}</h2>
         
+        {error && <div className="error-message">{error}</div>}
+
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Название</label>
@@ -91,6 +147,7 @@ const TaskModal = ({
               value={formData.title}
               onChange={handleChange}
               required
+              disabled={loading}
             />
           </div>
 
@@ -101,6 +158,7 @@ const TaskModal = ({
               value={formData.description}
               onChange={handleChange}
               rows={4}
+              disabled={loading}
             />
           </div>
 
@@ -119,6 +177,7 @@ const TaskModal = ({
                 value={formData.board}
                 onChange={handleChange}
                 required
+                disabled={loading}
               >
                 <option value="">Выберите проект</option>
                 <option value="Проект 'Авто'">Проект "Авто"</option>
@@ -134,6 +193,7 @@ const TaskModal = ({
               value={formData.priority}
               onChange={handleChange}
               required
+              disabled={loading}
             >
               <option value="low">Низкий</option>
               <option value="medium">Средний</option>
@@ -148,6 +208,7 @@ const TaskModal = ({
               value={formData.status}
               onChange={handleChange}
               required
+              disabled={loading}
             >
               <option value="todo">To Do</option>
               <option value="in_progress">In Progress</option>
@@ -162,6 +223,7 @@ const TaskModal = ({
               value={formData.assignee}
               onChange={handleChange}
               required
+              disabled={loading}
             >
               <option value="">Выберите исполнителя</option>
               <option value="Иванов">Иванов</option>
@@ -180,13 +242,23 @@ const TaskModal = ({
               </NavLink>
             )}
             
-            <button type="submit" className="submit-button">
-              {initialData ? 'Обновить' : 'Создать'}
+            <button 
+              type="submit" 
+              className="submit-button"
+              disabled={loading}
+            >
+              {loading ? 'Отправка...' : initialData ? 'Обновить' : 'Создать'}
             </button>
           </div>
         </form>
 
-        <button className="close-button" onClick={onClose}>×</button>
+        <button 
+          className="close-button" 
+          onClick={onClose}
+          disabled={loading}
+        >
+          ×
+        </button>
       </div>
     </div>
   );
