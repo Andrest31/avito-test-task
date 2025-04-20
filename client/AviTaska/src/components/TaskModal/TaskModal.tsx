@@ -89,7 +89,7 @@ const TaskModal = ({
         priority: initialData.priority,
         status: initialData.status,
         assignee: initialData.assignee,
-        assigneeId: initialData.assigneeId
+        assigneeId: initialData.assigneeId || ''
       });
     } else {
       setFormData({
@@ -114,9 +114,11 @@ const TaskModal = ({
   const handleAssigneeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedOption = e.target.selectedOptions[0];
     const assigneeId = selectedOption.dataset.id || '';
+    const assignee = selectedOption.value;
+    
     setFormData(prev => ({ 
       ...prev, 
-      assignee: e.target.value,
+      assignee,
       assigneeId 
     }));
   };
@@ -142,12 +144,15 @@ const TaskModal = ({
         high: 'High'
       };
 
+      const currentAssigneeId = formData.assigneeId || 
+                              (initialData?.assigneeId ? initialData.assigneeId : '');
+
       const taskPayload = {
         title: formData.title,
         description: formData.description,
         priority: priorityMap[formData.priority],
         status: mapStatusToApi(formData.status),
-        assigneeId: formData.assigneeId ? parseInt(formData.assigneeId) : 0
+        assigneeId: currentAssigneeId ? parseInt(currentAssigneeId) : 0
       };
 
       if (initialData?.id) {
@@ -164,7 +169,8 @@ const TaskModal = ({
         onTaskCreated({
           ...formData,
           id: initialData.id,
-          boardId: initialData.boardId
+          boardId: initialData.boardId,
+          assigneeId: currentAssigneeId
         });
       } else {
         const boardId = isCalledFromBoardPage 
@@ -190,7 +196,8 @@ const TaskModal = ({
         onTaskCreated({
           ...formData,
           id: newTask.id.toString(),
-          boardId: boardId.toString()
+          boardId: boardId.toString(),
+          assigneeId: currentAssigneeId
         });
       }
 
@@ -307,6 +314,7 @@ const TaskModal = ({
                   key={user.id} 
                   value={user.fullName}
                   data-id={user.id}
+                  selected={formData.assigneeId === user.id.toString()}
                 >
                   {user.fullName}
                 </option>

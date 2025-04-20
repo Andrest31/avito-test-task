@@ -44,6 +44,7 @@ interface Task {
   board: string;
   boardId: string;
   assignee: string;
+  assigneeId: string;
   priority: TaskPriority;
   status: TaskStatus;
 }
@@ -87,6 +88,7 @@ const BoardPage = () => {
         board: currentBoardName,
         boardId: id || "",
         assignee: task.assignee.fullName,
+        assigneeId: task.assignee.id.toString(),
         priority: task.priority.toLowerCase() as TaskPriority,
         status: mapStatus(task.status)
       }));
@@ -149,42 +151,40 @@ const BoardPage = () => {
   };
 
   const handleTaskCreated = (updatedTask: TaskData) => {
-    if (updatedTask.id) {
-      // Убедимся, что id точно строка
-      const taskId = updatedTask.id.toString();
-      
-      setColumns(prevColumns => {
-        // 1. Удаляем задачу из всех колонок
-        const columnsWithoutTask = prevColumns.map(column => ({
-          ...column,
-          tasks: column.tasks.filter(task => task.id !== taskId)
-        }));
-  
-        // 2. Добавляем обновленную задачу в нужную колонку
-        return columnsWithoutTask.map(column => {
-          if (column.id === updatedTask.status) {
-            return {
-              ...column,
-              tasks: [
-                ...column.tasks,
-                {
-                  id: taskId,
-                  title: updatedTask.title,
-                  description: updatedTask.description,
-                  board: updatedTask.board || boardName,
-                  boardId: updatedTask.boardId || id || "",
-                  assignee: updatedTask.assignee,
-                  priority: updatedTask.priority,
-                  status: updatedTask.status
-                } as Task // Явное приведение типа
-              ]
-            };
-          }
-          return column;
-        });
+    if (!updatedTask.id) return;
+
+    const taskId = updatedTask.id;
+    const newTask: Task = {
+      id: taskId,
+      title: updatedTask.title,
+      description: updatedTask.description,
+      board: updatedTask.board || boardName,
+      boardId: updatedTask.boardId || id || "",
+      assignee: updatedTask.assignee,
+      assigneeId: updatedTask.assigneeId || "",
+      priority: updatedTask.priority,
+      status: updatedTask.status
+    };
+
+    setColumns(prevColumns => {
+      // 1. Удаляем задачу из всех колонок
+      const filteredColumns = prevColumns.map(column => ({
+        ...column,
+        tasks: column.tasks.filter(task => task.id !== taskId)
+      }));
+
+      // 2. Добавляем обновленную задачу в нужную колонку
+      return filteredColumns.map(column => {
+        if (column.id === newTask.status) {
+          return {
+            ...column,
+            tasks: [...column.tasks, newTask]
+          };
+        }
+        return column;
       });
-    }
-  
+    });
+
     setIsModalOpen(false);
     setEditingTask(null);
   };
@@ -218,10 +218,7 @@ const BoardPage = () => {
                     <h4>{task.title}</h4>
                     <p>{task.description}</p>
                     <div className="task-meta">
-                      <span 
-                          className="task-priority"
-                          data-priority={task.priority}                      
-                          >
+                      <span className={`task-priority ${task.priority}`}>
                         {task.priority}
                       </span>
                       <span className="task-assignee">{task.assignee}</span>
@@ -250,7 +247,8 @@ const BoardPage = () => {
           boardId: editingTask.boardId,
           priority: editingTask.priority,
           status: editingTask.status,
-          assignee: editingTask.assignee
+          assignee: editingTask.assignee,
+          assigneeId: editingTask.assigneeId
         } : undefined}
         isFromBoard={true}
         initialBoard={editingTask?.board}
