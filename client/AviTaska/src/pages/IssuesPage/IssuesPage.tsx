@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import TaskCard from "../../components/TaskCard/TaskCard";
 import TaskModal, { TaskData } from "../../components/TaskModal/TaskModal";
 import "./IssuesPage.css";
@@ -34,9 +35,11 @@ type Task = {
   boardId: string;
   assignee: string;
   priority: 'low' | 'medium' | 'high';
+  assigneeId?: string;
 };
 
 const IssuesPage = () => {
+  const navigate = useNavigate();
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -70,6 +73,7 @@ const IssuesPage = () => {
           board: task.boardName,
           boardId: task.boardId.toString(),
           assignee: task.assignee.fullName,
+          assigneeId: task.assignee.id.toString(),
           priority: task.priority.toLowerCase() as 'low' | 'medium' | 'high'
         }));
 
@@ -130,6 +134,11 @@ const IssuesPage = () => {
         status: statusMap[newTaskData.status] || 'To Do'
       };
       setAllTasks([...allTasks, newTask]);
+      
+      // Редирект на страницу доски после создания новой задачи
+      if (newTaskData.boardId) {
+        navigate(`/board/${newTaskData.boardId}`);
+      }
     }
     setIsModalOpen(false);
     setEditingTask(null);
@@ -287,7 +296,8 @@ const IssuesPage = () => {
           boardId: editingTask.boardId,
           priority: editingTask.priority,
           status: editingTask.status as 'todo' | 'in_progress' | 'done',
-          assignee: editingTask.assignee
+          assignee: editingTask.assignee,
+          assigneeId: editingTask.assigneeId
         } : undefined}
       />
     </div>

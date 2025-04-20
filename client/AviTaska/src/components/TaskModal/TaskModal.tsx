@@ -30,7 +30,7 @@ type TaskModalProps = {
   initialData?: TaskData;
   isFromBoard?: boolean;
   initialBoard?: string;
-  onTaskCreated: (task: Omit<TaskData, 'id'>) => void;
+  onTaskCreated: (task: TaskData) => void;
 };
 
 const TaskModal = ({ 
@@ -77,9 +77,7 @@ const TaskModal = ({
       }
     };
 
-    if (isOpen) {
-      fetchData();
-    }
+    if (isOpen) fetchData();
   }, [isOpen, isCalledFromBoardPage]);
 
   useEffect(() => {
@@ -93,7 +91,7 @@ const TaskModal = ({
         assignee: initialData.assignee,
         assigneeId: initialData.assigneeId
       });
-    } else if (!isOpen) {
+    } else {
       setFormData({
         title: '',
         description: '',
@@ -152,7 +150,7 @@ const TaskModal = ({
         assigneeId: formData.assigneeId ? parseInt(formData.assigneeId) : 0
       };
 
-      if (initialData && initialData.id) {
+      if (initialData?.id) {
         const response = await fetch(`http://localhost:8080/api/v1/tasks/update/${initialData.id}`, {
           method: 'PUT',
           headers: {
@@ -161,9 +159,13 @@ const TaskModal = ({
           body: JSON.stringify(taskPayload)
         });
 
-        if (!response.ok) {
-          throw new Error(`Ошибка при обновлении задачи: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`Ошибка при обновлении задачи: ${response.status}`);
+
+        onTaskCreated({
+          ...formData,
+          id: initialData.id,
+          boardId: initialData.boardId
+        });
       } else {
         const boardId = isCalledFromBoardPage 
           ? location.pathname.split('/').pop() 
@@ -182,16 +184,19 @@ const TaskModal = ({
           })
         });
 
-        if (!response.ok) {
-          throw new Error(`Ошибка при создании задачи: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`Ошибка при создании задачи: ${response.status}`);
+
+        const newTask = await response.json();
+        onTaskCreated({
+          ...formData,
+          id: newTask.id.toString(),
+          boardId: boardId.toString()
+        });
       }
 
-      onTaskCreated(formData);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
-      console.error('Ошибка:', err);
     } finally {
       setLoading(false);
     }
