@@ -1,10 +1,11 @@
 import "./BoardsPage.css";
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 
 interface Project {
   id: number;
   name: string;
-  taskCount: number;  // Обратите внимание на поле taskCount (не tasksCount)
+  taskCount: number;
   description: string;
 }
 
@@ -25,12 +26,11 @@ const BoardsPage = () => {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const result: ApiResponse = await response.json();
-        
-        // Проверяем наличие data и что это массив
+
         if (!result.data || !Array.isArray(result.data)) {
           throw new Error("Invalid data format from API");
         }
-        
+
         setProjects(result.data);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error occurred");
@@ -54,8 +54,14 @@ const BoardsPage = () => {
     <div className="projects-container">
       <h2 className="page-title">Мои проекты</h2>
       <div className="projects-grid">
-        {projects.map(project => (
-          <div key={project.id} className="project-card">
+        {projects.map((project, index) => (
+          <motion.div
+            key={project.id}
+            className="project-card"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05, duration: 0.3 }}
+          >
             <div className="project-header">
               <h3>{project.name}</h3>
               <span className="tasks-count">{project.taskCount} задач</span>
@@ -68,7 +74,7 @@ const BoardsPage = () => {
                 Перейти к доске
               </a>
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
     </div>

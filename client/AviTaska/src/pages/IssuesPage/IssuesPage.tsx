@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import TaskCard from "../../components/TaskCard/TaskCard";
 import TaskModal, { TaskData } from "../../components/TaskModal/TaskModal";
 import "./IssuesPage.css";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface Assignee {
   id: number;
@@ -45,7 +46,7 @@ const IssuesPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [assignees, setAssignees] = useState<Assignee[]>([]);
-  
+
   const [activeBoard, setActiveBoard] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -107,8 +108,8 @@ const IssuesPage = () => {
 
   const filteredTasks = allTasks.filter(task => {
     const searchLower = searchQuery.toLowerCase();
-    const matchesSearch = 
-      task.title.toLowerCase().includes(searchLower) || 
+    const matchesSearch =
+      task.title.toLowerCase().includes(searchLower) ||
       task.assignee.toLowerCase().includes(searchLower);
     const matchesBoard = !activeBoard || task.board === activeBoard;
     const matchesStatus = !activeStatus || task.status === activeStatus;
@@ -116,22 +117,22 @@ const IssuesPage = () => {
   });
 
   const handleTaskCreated = (newTaskData: TaskData) => {
+    const statusMap = {
+      todo: 'To Do',
+      in_progress: 'In Progress',
+      done: 'Done'
+    };
+
     if (newTaskData.id) {
-      const statusMap = {
-        todo: 'To Do',
-        in_progress: 'In Progress',
-        done: 'Done'
-      };
-  
       if (editingTask) {
         setAllTasks(allTasks.map(task =>
           task.id === editingTask.id
             ? {
-                ...task,
-                ...newTaskData,
-                boardId: newTaskData.boardId || task.boardId,
-                status: statusMap[newTaskData.status as keyof typeof statusMap] || task.status
-              }
+              ...task,
+              ...newTaskData,
+              boardId: newTaskData.boardId || task.boardId,
+              status: statusMap[newTaskData.status as keyof typeof statusMap] || task.status
+            }
             : task
         ));
       } else {
@@ -144,13 +145,13 @@ const IssuesPage = () => {
           assignee: newTaskData.assignee,
           assigneeId: newTaskData.assigneeId
         };
-        setAllTasks(prevTasks => [...prevTasks, newTask]); // Добавляем задачу в список
+        setAllTasks(prevTasks => [...prevTasks, newTask]);
       }
     }
+
     setIsModalOpen(false);
     setEditingTask(null);
   };
-  
 
   const handleEditClick = (task: Task) => {
     const statusMap = {
@@ -158,7 +159,7 @@ const IssuesPage = () => {
       'In Progress': 'in_progress',
       'Done': 'done'
     };
-    
+
     setEditingTask({
       ...task,
       status: statusMap[task.status as keyof typeof statusMap] || 'todo',
@@ -176,13 +177,30 @@ const IssuesPage = () => {
   }
 
   return (
-    <div className="issues-page">
+    <motion.div
+      className="issues-page"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.4 }}
+    >
       <div className="page-container">
         <div className="page-header">
-          <h1 className="page-title">Все задачи</h1>
-          
+          <motion.h1
+            className="page-title"
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.1, duration: 0.4 }}
+          >
+            Все задачи
+          </motion.h1>
+
           <div className="controls">
-            <div className="search-container">
+            <motion.div
+              className="search-container"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
               <input
                 type="text"
                 value={searchQuery}
@@ -190,107 +208,132 @@ const IssuesPage = () => {
                 placeholder="Поиск по задачам..."
                 className="search-input"
               />
-            </div>
+            </motion.div>
 
             <div className="filters-wrapper">
-              <button 
+              <motion.button
                 className="filters-button"
                 onClick={() => setShowFilters(!showFilters)}
+                whileTap={{ scale: 0.95 }}
               >
                 Фильтры
-              </button>
+              </motion.button>
 
-              {showFilters && (
-                <div 
-                  className="filters-dropdown"
-                  onMouseLeave={() => setShowFilters(false)}
-                >
-                  <div 
-                    className="filter-category"
-                    onMouseEnter={() => setHoveredSubmenu('boards')}
+              <AnimatePresence>
+                {showFilters && (
+                  <motion.div
+                    className="filters-dropdown"
+                    onMouseLeave={() => setShowFilters(false)}
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
                   >
-                    Доски {activeBoard && `→ ${activeBoard}`}
-                    {hoveredSubmenu === 'boards' && (
-                      <div className="submenu">
-                        {boards.map(board => (
+                    <div
+                      className="filter-category"
+                      onMouseEnter={() => setHoveredSubmenu('boards')}
+                    >
+                      Доски {activeBoard && `→ ${activeBoard}`}
+                      {hoveredSubmenu === 'boards' && (
+                        <div className="submenu">
+                          {boards.map(board => (
+                            <div
+                              key={board}
+                              className={`submenu-item ${activeBoard === board ? 'active' : ''}`}
+                              onClick={() => setActiveBoard(board)}
+                            >
+                              {board}
+                            </div>
+                          ))}
+                          <div className="submenu-divider"></div>
                           <div
-                            key={board}
-                            className={`submenu-item ${activeBoard === board ? 'active' : ''}`}
-                            onClick={() => setActiveBoard(board)}
+                            className="submenu-item"
+                            onClick={() => setActiveBoard(null)}
                           >
-                            {board}
+                            Сбросить
                           </div>
-                        ))}
-                        <div className="submenu-divider"></div>
-                        <div 
-                          className="submenu-item"
-                          onClick={() => setActiveBoard(null)}
-                        >
-                          Сбросить
                         </div>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
 
-                  <div 
-                    className="filter-category"
-                    onMouseEnter={() => setHoveredSubmenu('statuses')}
-                  >
-                    Статусы {activeStatus && `→ ${activeStatus}`}
-                    {hoveredSubmenu === 'statuses' && (
-                      <div className="submenu">
-                        {statuses.map(status => (
+                    <div
+                      className="filter-category"
+                      onMouseEnter={() => setHoveredSubmenu('statuses')}
+                    >
+                      Статусы {activeStatus && `→ ${activeStatus}`}
+                      {hoveredSubmenu === 'statuses' && (
+                        <div className="submenu">
+                          {statuses.map(status => (
+                            <div
+                              key={status}
+                              className={`submenu-item ${activeStatus === status ? 'active' : ''}`}
+                              onClick={() => setActiveStatus(status)}
+                            >
+                              {status}
+                            </div>
+                          ))}
+                          <div className="submenu-divider"></div>
                           <div
-                            key={status}
-                            className={`submenu-item ${activeStatus === status ? 'active' : ''}`}
-                            onClick={() => setActiveStatus(status)}
+                            className="submenu-item"
+                            onClick={() => setActiveStatus(null)}
                           >
-                            {status}
+                            Сбросить
                           </div>
-                        ))}
-                        <div className="submenu-divider"></div>
-                        <div 
-                          className="submenu-item"
-                          onClick={() => setActiveStatus(null)}
-                        >
-                          Сбросить
                         </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>
 
-        <div className="tasks-grid">
+        <motion.div
+          className="tasks-grid"
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: {},
+            visible: {
+              transition: {
+                staggerChildren: 0.05
+              }
+            }
+          }}
+        >
           {filteredTasks.length > 0 ? (
-            filteredTasks.map(task => (
-              <TaskCard 
-                key={task.id} 
-                task={task} 
-                onEditClick={handleEditClick}
-              />
+            filteredTasks.map((task) => (
+              <motion.div
+                key={task.id}
+                variants={{
+                  hidden: { opacity: 0, y: 10 },
+                  visible: { opacity: 1, y: 0 }
+                }}
+              >
+                <TaskCard task={task} onEditClick={handleEditClick} />
+              </motion.div>
             ))
           ) : (
             <div className="no-results">Задачи не найдены</div>
           )}
-        </div>
+        </motion.div>
 
         <nav className="page-nav">
-          <button 
+          <motion.button
             className="nav-link create-btn"
             onClick={() => {
               setEditingTask(null);
               setIsModalOpen(true);
             }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
             Создать задачу
-          </button>
+          </motion.button>
         </nav>
 
-        <TaskModal 
+        <TaskModal
           isOpen={isModalOpen}
           onClose={() => {
             setIsModalOpen(false);
@@ -311,7 +354,7 @@ const IssuesPage = () => {
           allAssignees={assignees}
         />
       </div>
-    </div>
+    </motion.div>
   );
 };
 
