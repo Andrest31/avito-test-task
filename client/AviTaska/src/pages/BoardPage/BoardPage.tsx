@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useSearchParams, useNavigate } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import TaskModal, { TaskData } from "../../components/TaskModal/TaskModal";
 import Header from "../../components/Header/Header";
 import "./BoardPage.css";
@@ -59,14 +59,14 @@ interface Column {
 const BoardPage = () => {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [columns, setColumns] = useState<Column[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [boardName, setBoardName] = useState("");
+  const [boardName, setBoardName] = useState<string>('');
   const [allBoards, setAllBoards] = useState<BoardInfo[]>([]);
+  const [assignees, setAssignees] = useState<Assignee[]>([]);
 
   const fetchBoardData = async () => {
     try {
@@ -77,13 +77,13 @@ const BoardPage = () => {
 
       const tasksResponse = await fetch(`http://localhost:8080/api/v1/boards/${id}`);
       if (!tasksResponse.ok) throw new Error(`HTTP error! status: ${tasksResponse.status}`);
-      
+
       const result: ApiResponse = await tasksResponse.json();
       if (!result.data || !Array.isArray(result.data)) {
         throw new Error("Invalid data format from API");
       }
 
-      const transformedTasks = result.data.map(task => ({
+      const transformedTasks: Task[] = result.data.map(task => ({
         id: task.id.toString(),
         title: task.title,
         description: task.description,
@@ -96,7 +96,7 @@ const BoardPage = () => {
       }));
 
       updateColumns(transformedTasks);
-      
+
       const taskId = searchParams.get('taskId');
       if (taskId) {
         const taskToEdit = transformedTasks.find(t => t.id === taskId);
@@ -125,23 +125,31 @@ const BoardPage = () => {
   };
 
   useEffect(() => {
-    const fetchBoards = async () => {
+    const fetchInitialData = async () => {
       try {
-        const response = await fetch('http://localhost:8080/api/v1/boards');
-        if (!response.ok) throw new Error('Failed to fetch boards');
-        const result: BoardsResponse = await response.json();
-        setAllBoards(result.data || []);
+        const boardsResponse = await fetch('http://localhost:8080/api/v1/boards');
+        if (!boardsResponse.ok) throw new Error('Failed to fetch boards');
+        const boardsResult: BoardsResponse = await boardsResponse.json();
+        setAllBoards(boardsResult.data || []);
+
+        const assigneesResponse = await fetch('http://localhost:8080/api/v1/users');
+        if (!assigneesResponse.ok) throw new Error('Failed to fetch assignees');
+        const assigneesResult = await assigneesResponse.json();
+        setAssignees(assigneesResult.data || []);
       } catch (err) {
-        console.error('Error fetching boards:', err);
+        console.error('Error fetching initial data:', err);
       }
     };
 
-    fetchBoards();
+    fetchInitialData();
   }, []);
 
+  // ✅ Новый useEffect, дожидается загрузки досок
   useEffect(() => {
-    if (id) fetchBoardData();
-  }, [id, searchParams, allBoards]);
+    if (id && allBoards.length > 0) {
+      fetchBoardData();
+    }
+  }, [id, allBoards, searchParams]);
 
   const mapStatus = (apiStatus: string): TaskStatus => {
     switch (apiStatus) {
@@ -153,7 +161,32 @@ const BoardPage = () => {
   };
 
   const handleTaskCreated = (updatedTask: TaskData) => {
-    fetchBoardData(); // Перезагружаем данные с сервера
+    setColumns(prevColumns => {
+      const filteredColumns = prevColumns.map(column => ({
+        ...column,
+        tasks: column.tasks.filter(t => t.id !== updatedTask.id)
+      }));
+
+      return filteredColumns.map(column => {
+        if (column.id === updatedTask.status) {
+          return {
+            ...column,
+            tasks: [
+              ...column.tasks,
+              {
+                ...updatedTask,
+                id: updatedTask.id ?? "",
+                assignee:
+                  assignees.find(a => a.id.toString() === updatedTask.assigneeId)?.fullName ||
+                  updatedTask.assignee
+              }
+            ]
+          };
+        }
+        return column;
+      });
+    });
+
     setIsModalOpen(false);
     setEditingTask(null);
     window.history.replaceState({}, '', `/board/${id}`);
@@ -171,14 +204,14 @@ const BoardPage = () => {
     <div className="board-page">
       <Header 
         onTaskCreated={handleTaskCreated}
-        currentBoard={boardName}
+        currentBoard={boardName}  
       />
-      
+
       <div className="board-container">
         <div className="board-header">
           <h2 className="board-title">{boardName}</h2>
         </div>
-        
+
         <div className="board-content">
           <div className="board-columns">
             {columns.map(column => (
@@ -194,12 +227,10 @@ const BoardPage = () => {
                       <h4>{task.title}</h4>
                       <p>{task.description}</p>
                       <div className="task-meta">
-                      <span 
-                          className="task-priority"
-                          data-priority={task.priority}                      
-                          >
-                        {task.priority}
-                      </span>                        <span className="task-assignee">{task.assignee}</span>
+                        <span className={`task-priority ${task.priority}`}>
+                          {task.priority}
+                        </span>
+                        <span className="task-assignee">{task.assignee}</span>
                       </div>
                     </div>
                   ))}
@@ -231,6 +262,7 @@ const BoardPage = () => {
         } : undefined}
         isFromBoard={true}
         initialBoard={editingTask?.board}
+        allAssignees={assignees}
       />
     </div>
   );

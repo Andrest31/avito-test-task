@@ -31,15 +31,17 @@ type TaskModalProps = {
   isFromBoard?: boolean;
   initialBoard?: string;
   onTaskCreated: (task: TaskData) => void;
+  allAssignees?: Assignee[];
 };
 
-const TaskModal = ({ 
-  isOpen, 
-  onClose, 
-  initialData, 
-  isFromBoard = false, 
+const TaskModal = ({
+  isOpen,
+  onClose,
+  initialData,
+  isFromBoard = false,
   initialBoard = '',
-  onTaskCreated 
+  onTaskCreated,
+  allAssignees = []
 }: TaskModalProps) => {
   const location = useLocation();
   const [formData, setFormData] = useState<Omit<TaskData, 'id'>>({
@@ -54,12 +56,11 @@ const TaskModal = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [boards, setBoards] = useState<Board[]>([]);
-  const [assignees, setAssignees] = useState<Assignee[]>([]);
 
   const isCalledFromBoardPage = isFromBoard || location.pathname.includes('/board/');
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchBoards = async () => {
       try {
         if (!isCalledFromBoardPage) {
           const boardsResponse = await fetch('http://localhost:8080/api/v1/boards');
@@ -67,17 +68,12 @@ const TaskModal = ({
           const boardsData = await boardsResponse.json();
           setBoards(boardsData.data || []);
         }
-
-        const assigneesResponse = await fetch('http://localhost:8080/api/v1/users');
-        if (!assigneesResponse.ok) throw new Error('Ошибка загрузки исполнителей');
-        const assigneesData = await assigneesResponse.json();
-        setAssignees(assigneesData.data || []);
       } catch (err) {
-        console.error('Ошибка загрузки данных:', err);
+        console.error('Ошибка загрузки досок:', err);
       }
     };
 
-    if (isOpen) fetchData();
+    if (isOpen) fetchBoards();
   }, [isOpen, isCalledFromBoardPage]);
 
   useEffect(() => {
@@ -115,11 +111,11 @@ const TaskModal = ({
     const selectedOption = e.target.selectedOptions[0];
     const assigneeId = selectedOption.dataset.id || '';
     const assignee = selectedOption.value;
-    
-    setFormData(prev => ({ 
-      ...prev, 
+
+    setFormData(prev => ({
+      ...prev,
       assignee,
-      assigneeId 
+      assigneeId
     }));
   };
 
@@ -136,16 +132,17 @@ const TaskModal = ({
     e.preventDefault();
     setLoading(true);
     setError(null);
-  
+
     try {
       const priorityMap = {
         low: 'Low',
         medium: 'Medium',
         high: 'High'
       };
-  
+
       const currentAssigneeId = formData.assigneeId || initialData?.assigneeId || '';
-  
+      const assigneeName = formData.assignee || allAssignees.find(a => a.id.toString() === currentAssigneeId)?.fullName || '';
+
       const taskPayload = {
         title: formData.title,
         description: formData.description,
@@ -153,9 +150,9 @@ const TaskModal = ({
         status: mapStatusToApi(formData.status),
         assigneeId: currentAssigneeId ? parseInt(currentAssigneeId) : 0
       };
-  
+
       if (initialData?.id) {
-        // Обновление задачи
+        // Обновление существующей задачи
         const response = await fetch(`http://localhost:8080/api/v1/tasks/update/${initialData.id}`, {
           method: 'PUT',
           headers: {
@@ -163,25 +160,36 @@ const TaskModal = ({
           },
           body: JSON.stringify(taskPayload)
         });
-  
+
         if (!response.ok) throw new Error(`Ошибка при обновлении задачи: ${response.status}`);
-  
-        onTaskCreated({
-          ...formData,
+
+        const updatedTask: TaskData = {
           id: initialData.id,
+          title: formData.title,
+          description: formData.description,
+          board: formData.board,
           boardId: initialData.boardId,
+          priority: formData.priority,
+          status: formData.status,
+          assignee: assigneeName,
           assigneeId: currentAssigneeId
-        });
+        };
+
+        onTaskCreated(updatedTask);
+
       } else {
         // Создание новой задачи
-        const boardIdString = isCalledFromBoardPage 
-          ? location.pathname.split('/').pop() 
+        const boardIdString = isCalledFromBoardPage
+          ? location.pathname.split('/').pop()
           : boards.find(b => b.name === formData.board)?.id?.toString();
-  
+
         if (!boardIdString) throw new Error('Не выбран проект');
-  
-        const boardId = parseInt(boardIdString); // 🔥 ВАЖНО: привести к числу
-  
+
+        const boardId = parseInt(boardIdString);
+        const boardName = isCalledFromBoardPage 
+          ? initialBoard 
+          : formData.board;
+
         const response = await fetch('http://localhost:8080/api/v1/tasks/create', {
           method: 'POST',
           headers: {
@@ -189,32 +197,37 @@ const TaskModal = ({
           },
           body: JSON.stringify({
             ...taskPayload,
-            boardId: boardId // 👈 передаём числом, а не строкой
+            boardId
           })
         });
-  
+
         if (!response.ok) throw new Error(`Ошибка при создании задачи: ${response.status}`);
-  
+
         const responseData = await response.json();
         const newTaskId = responseData.id?.toString() || responseData.data?.id?.toString();
         if (!newTaskId) throw new Error('Не удалось получить ID созданной задачи');
-  
-        onTaskCreated({
-          ...formData,
+
+        const newTask: TaskData = {
           id: newTaskId,
+          title: formData.title,
+          description: formData.description,
+          board: boardName,
           boardId: boardId.toString(),
+          priority: formData.priority,
+          status: formData.status,
+          assignee: assigneeName,
           assigneeId: currentAssigneeId
-        });
+        };
+
+        onTaskCreated(newTask);
       }
-  
-      onClose();
+
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
     } finally {
       setLoading(false);
     }
   };
-  
 
   if (!isOpen) return null;
 
@@ -222,7 +235,7 @@ const TaskModal = ({
     <div className="modal-overlay">
       <div className="modal-content">
         <h2>{initialData ? 'Редактирование задачи' : 'Создание задачи'}</h2>
-        
+
         {error && <div className="error-message">{error}</div>}
 
         <form onSubmit={handleSubmit}>
@@ -316,12 +329,11 @@ const TaskModal = ({
               disabled={loading}
             >
               <option value="">Выберите исполнителя</option>
-              {assignees.map(user => (
-                <option 
-                  key={user.id} 
+              {allAssignees.map(user => (
+                <option
+                  key={user.id}
                   value={user.fullName}
                   data-id={user.id}
-                  selected={formData.assigneeId === user.id.toString()}
                 >
                   {user.fullName}
                 </option>
@@ -331,16 +343,16 @@ const TaskModal = ({
 
           <div className="modal-actions">
             {!isCalledFromBoardPage && initialData && (
-              <NavLink 
+              <NavLink
                 to={`/board/${initialData.boardId}?taskId=${initialData.id}`}
                 className="go-to-board-button"
               >
                 Перейти на доску
               </NavLink>
             )}
-            
-            <button 
-              type="submit" 
+
+            <button
+              type="submit"
               className="submit-button"
               disabled={loading}
             >
@@ -349,8 +361,8 @@ const TaskModal = ({
           </div>
         </form>
 
-        <button 
-          className="close-button" 
+        <button
+          className="close-button"
           onClick={onClose}
           disabled={loading}
         >
