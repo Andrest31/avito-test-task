@@ -113,16 +113,36 @@ const BoardPage = () => {
   };
 
   const updateColumns = (tasks: Task[]) => {
-    const todoTasks = tasks.filter(task => task.status === 'todo');
-    const inProgressTasks = tasks.filter(task => task.status === 'in_progress');
-    const doneTasks = tasks.filter(task => task.status === 'done');
-
+    const todoTasks = tasks.filter(task => task.status === 'todo').sort((a, b) => sortTasks(a, b));
+    const inProgressTasks = tasks.filter(task => task.status === 'in_progress').sort((a, b) => sortTasks(a, b));
+    const doneTasks = tasks.filter(task => task.status === 'done').sort((a, b) => sortTasks(a, b));
+  
     setColumns([
       { id: 'todo', title: 'To Do', tasks: todoTasks },
       { id: 'in_progress', title: 'In Progress', tasks: inProgressTasks },
       { id: 'done', title: 'Done', tasks: doneTasks }
     ]);
   };
+  
+  // Функция сортировки задач (по приоритету или другому полю)
+  const sortTasks = (a: Task, b: Task) => {
+    // Сначала сортировка по статусу (приоритету)
+    const priorityOrder: { [key in TaskPriority]: number } = {
+      low: 1,
+      medium: 2,
+      high: 3
+    };
+  
+    // Сортировка сначала по статусу (приоритету), а потом по названию
+    if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+      return priorityOrder[b.priority] - priorityOrder[a.priority];  // Сортировка по убыванию приоритета
+    }
+  
+    // Если приоритет одинаковый, сортируем по названию (по алфавиту)
+    return a.title.localeCompare(b.title);
+  };
+  
+  
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -166,7 +186,7 @@ const BoardPage = () => {
         ...column,
         tasks: column.tasks.filter(t => t.id !== updatedTask.id)
       }));
-
+  
       return filteredColumns.map(column => {
         if (column.id === updatedTask.status) {
           return {
@@ -180,17 +200,18 @@ const BoardPage = () => {
                   assignees.find(a => a.id.toString() === updatedTask.assigneeId)?.fullName ||
                   updatedTask.assignee
               }
-            ]
+            ].sort((a, b) => sortTasks(a, b))  // Сортируем задачи в новом столбце
           };
         }
         return column;
       });
     });
-
+  
     setIsModalOpen(false);
     setEditingTask(null);
     window.history.replaceState({}, '', `/board/${id}`);
   };
+  
 
   const handleTaskClick = (task: Task) => {
     setEditingTask(task);
