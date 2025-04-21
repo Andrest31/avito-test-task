@@ -46,6 +46,7 @@ const IssuesPage = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [assignees, setAssignees] = useState<Assignee[]>([]);
   
   const [activeBoard, setActiveBoard] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState<string | null>(null);
@@ -53,19 +54,24 @@ const IssuesPage = () => {
   const [hoveredSubmenu, setHoveredSubmenu] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchTasks = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch("http://localhost:8080/api/v1/tasks");
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const result: ApiResponse = await response.json();
+        const [tasksResponse, assigneesResponse] = await Promise.all([
+          fetch("http://localhost:8080/api/v1/tasks"),
+          fetch("http://localhost:8080/api/v1/users")
+        ]);
 
-        if (!result.data || !Array.isArray(result.data)) {
+        if (!tasksResponse.ok) throw new Error(`HTTP error! status: ${tasksResponse.status}`);
+        if (!assigneesResponse.ok) throw new Error(`HTTP error! status: ${assigneesResponse.status}`);
+
+        const tasksResult: ApiResponse = await tasksResponse.json();
+        const assigneesResult = await assigneesResponse.json();
+
+        if (!tasksResult.data || !Array.isArray(tasksResult.data)) {
           throw new Error("Invalid data format from API");
         }
 
-        const transformedTasks = result.data.map(task => ({
+        const transformedTasks = tasksResult.data.map(task => ({
           id: task.id.toString(),
           title: task.title,
           description: task.description,
@@ -78,6 +84,7 @@ const IssuesPage = () => {
         }));
 
         setAllTasks(transformedTasks);
+        setAssignees(assigneesResult.data || []);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error occurred");
       } finally {
@@ -85,7 +92,7 @@ const IssuesPage = () => {
       }
     };
 
-    fetchTasks();
+    fetchData();
   }, []);
 
   const mapStatus = (apiStatus: string): string => {
@@ -304,6 +311,7 @@ const IssuesPage = () => {
             assignee: editingTask.assignee,
             assigneeId: editingTask.assigneeId
           } : undefined}
+          allAssignees={assignees}
         />
       </div>
     </div>
