@@ -1,22 +1,23 @@
-version: '3.8'
+version: "3.8"
 
 services:
   backend:
     build:
       context: ./server
-      dockerfile: Dockerfile
-    container_name: avito-backend
+    container_name: avito-backend-container
     ports:
       - "8080:8080"
-    restart: unless-stopped
+    restart: always
 
-  client:
+  frontend:
     build:
       context: ./client/AviTaska
-      dockerfile: Dockerfile
-    container_name: avito-frontend
+    container_name: avito-frontend-container
     ports:
-      - "5173:80"  # клиент будет доступен по localhost:5173
+      - "5173:5173"
+    volumes:
+      - ./client/AviTaska:/app
+      - /app/node_modules
     depends_on:
       - backend
-    restart: unless-stopped
+    restart: always
