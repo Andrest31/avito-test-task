@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import TaskModal, { TaskData } from "../../components/TaskModal/TaskModal";
 import Header from "../../components/Header/Header";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import "./BoardPage.css";
 
 interface Assignee {
@@ -17,8 +18,7 @@ interface ApiTask {
   description: string;
   priority: 'Low' | 'Medium' | 'High';
   status: 'Backlog' | 'InProgress' | 'Done';
-  assignee?: Assignee;
-  boardName?: string;
+  assignee: Assignee;
 }
 
 interface BoardInfo {
@@ -57,6 +57,23 @@ interface Column {
   tasks: Task[];
 }
 
+const mapStatus = (apiStatus: string): TaskStatus => {
+  switch (apiStatus) {
+    case 'Backlog': return 'todo';
+    case 'InProgress': return 'in_progress';
+    case 'Done': return 'done';
+    default: return 'todo';
+  }
+};
+
+const toApiStatus = (status: TaskStatus): string => {
+  switch (status) {
+    case 'todo': return 'Backlog';
+    case 'in_progress': return 'InProgress';
+    case 'done': return 'Done';
+  }
+};
+
 const BoardPage = () => {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
@@ -85,14 +102,14 @@ const BoardPage = () => {
       }
 
       const transformedTasks: Task[] = result.data.map(task => ({
-        id: task.id.toString(),
+        id: task.id?.toString() ?? '',
         title: task.title,
         description: task.description,
-        board: task.boardName || currentBoardName,
+        board: currentBoardName,
         boardId: id || "",
-        assignee: task.assignee?.fullName || "",
-        assigneeId: task.assignee?.id?.toString() || "",
-        priority: task.priority?.toLowerCase() as TaskPriority || 'medium',
+        assignee: task.assignee?.fullName ?? '',
+        assigneeId: task.assignee?.id?.toString() ?? '',
+        priority: task.priority.toLowerCase() as TaskPriority,
         status: mapStatus(task.status)
       }));
 
@@ -114,8 +131,12 @@ const BoardPage = () => {
       const response = await fetch(`http://localhost:8080/api/v1/tasks/${taskId}`);
       if (!response.ok) throw new Error(`Failed to fetch task details`);
 
-      const responseData = await response.json();
-      const taskData = responseData.data;
+      const result = await response.json();
+      const taskData: ApiTask = result.data;
+
+      if (!taskData?.id || !taskData?.assignee?.id) {
+        throw new Error("Некорректные данные задачи");
+      }
 
       const boardInfo = allBoards.find(b => b.id.toString() === id);
       const currentBoardName = boardInfo?.name || `Доска ${id}`;
@@ -124,25 +145,26 @@ const BoardPage = () => {
         id: taskData.id.toString(),
         title: taskData.title,
         description: taskData.description,
-        board: taskData.boardName || currentBoardName,
+        board: currentBoardName,
         boardId: id || "",
-        assignee: taskData.assignee?.fullName || "",
-        assigneeId: taskData.assignee?.id?.toString() || "",
-        priority: taskData.priority?.toLowerCase() as TaskPriority || 'medium',
+        assignee: taskData.assignee.fullName,
+        assigneeId: taskData.assignee.id.toString(),
+        priority: taskData.priority.toLowerCase() as TaskPriority,
         status: mapStatus(taskData.status)
       };
 
       setEditingTask(taskDetails);
       setIsModalOpen(true);
     } catch (err) {
+      console.error("Ошибка при загрузке задачи:", err);
       setError(err instanceof Error ? err.message : "Failed to load task details");
     }
   };
 
   const updateColumns = (tasks: Task[]) => {
-    const todoTasks = tasks.filter(task => task.status === 'todo').sort((a, b) => sortTasks(a, b));
-    const inProgressTasks = tasks.filter(task => task.status === 'in_progress').sort((a, b) => sortTasks(a, b));
-    const doneTasks = tasks.filter(task => task.status === 'done').sort((a, b) => sortTasks(a, b));
+    const todoTasks = tasks.filter(task => task.status === 'todo').sort(sortTasks);
+    const inProgressTasks = tasks.filter(task => task.status === 'in_progress').sort(sortTasks);
+    const doneTasks = tasks.filter(task => task.status === 'done').sort(sortTasks);
 
     setColumns([
       { id: 'todo', title: 'To Do', tasks: todoTasks },
@@ -194,15 +216,6 @@ const BoardPage = () => {
     }
   }, [id, allBoards, searchParams]);
 
-  const mapStatus = (apiStatus: string): TaskStatus => {
-    switch (apiStatus) {
-      case 'Backlog': return 'todo';
-      case 'InProgress': return 'in_progress';
-      case 'Done': return 'done';
-      default: return 'todo';
-    }
-  };
-
   const handleTaskCreated = (updatedTask: TaskData) => {
     setColumns(prevColumns => {
       const filteredColumns = prevColumns.map(column => ({
@@ -233,8 +246,41 @@ const BoardPage = () => {
     window.history.replaceState({}, '', `/board/${id}`);
   };
 
+  const handleDragEnd = async (result: DropResult) => {
+    const { destination, source, draggableId } = result;
+
+    if (!destination || destination.droppableId === source.droppableId) return;
+
+    const sourceCol = columns.find(col => col.id === source.droppableId);
+    const destCol = columns.find(col => col.id === destination.droppableId);
+    if (!sourceCol || !destCol) return;
+
+    const movedTask = sourceCol.tasks.find(task => task.id === draggableId);
+    if (!movedTask) return;
+
+    const updatedTask = { ...movedTask, status: destCol.id };
+
+    const updatedColumns = columns.map(col => {
+      if (col.id === source.droppableId) {
+        return { ...col, tasks: col.tasks.filter(task => task.id !== draggableId) };
+      }
+      if (col.id === destination.droppableId) {
+        return { ...col, tasks: [...col.tasks, updatedTask].sort(sortTasks) };
+      }
+      return col;
+    });
+
+    setColumns(updatedColumns);
+
+    await fetch(`http://localhost:8080/api/v1/tasks/updateStatus/${movedTask.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: toApiStatus(destCol.id) })
+    });
+  };
+
   const handleTaskClick = async (task: Task) => {
-    await fetchTaskDetails(task.id);
+    setTimeout(() => fetchTaskDetails(task.id), 0);
   };
 
   if (loading) return <div className="loading-message">Загрузка задач...</div>;
@@ -242,50 +288,62 @@ const BoardPage = () => {
 
   return (
     <div className="board-page">
-      <Header 
+      <Header
         onTaskCreated={handleTaskCreated}
-        currentBoard={boardName}  
-        allAssignees={assignees} 
+        currentBoard={boardName}
+        allAssignees={assignees}
       />
 
       <div className="board-container">
-        <div className="board-header">
-          <h2 className="board-title">{boardName}</h2>
-        </div>
-
-        <div className="board-content">
+        <h2 className="board-title">{boardName}</h2>
+        <DragDropContext onDragEnd={handleDragEnd}>
           <div className="board-columns">
             {columns.map(column => (
-              <div key={column.id} className="board-column">
-                <h3 className="column-title">{column.title} ({column.tasks.length})</h3>
-                <div className="tasks-list">
-                  {column.tasks.map(task => (
-                    <div 
-                      key={task.id} 
-                      className="task-card"
-                      onClick={() => handleTaskClick(task)}
-                    >
-                      <h4>{task.title}</h4>
-                      <p>{task.description}</p>
-                      <div className="task-meta">
-                      <span 
-                          className="task-priority"
-                          data-priority={task.priority}                      
-                          >
-                        {task.priority}
-                      </span>                        
-                        <span className="task-assignee">{task.assignee}</span>
-                      </div>
+              <Droppable key={column.id} droppableId={column.id}>
+                {(provided) => (
+                  <div
+                    className="board-column"
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                  >
+                    <h3 className="column-title">{column.title} ({column.tasks.length})</h3>
+                    <div className="tasks-list">
+                      {column.tasks.map((task, index) => (
+                        <Draggable key={task.id} draggableId={task.id} index={index}>
+                          {(provided) => (
+                            <div
+                              className="task-card"
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              onClick={() => handleTaskClick(task)}
+                            >
+                              <h4>{task.title}</h4>
+                              <p>{task.description}</p>
+                              <div className="task-meta">
+                              <span 
+                                  className="task-priority"
+                                  data-priority={task.priority}                      
+                                  >
+                                {task.priority}
+                              </span>                        
+                                <span className="task-assignee">{task.assignee}</span>
+                              </div>
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
                     </div>
-                  ))}
-                </div>
-              </div>
+                  </div>
+                )}
+              </Droppable>
             ))}
           </div>
-        </div>
+        </DragDropContext>
       </div>
 
-      <TaskModal 
+      <TaskModal
         isOpen={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
