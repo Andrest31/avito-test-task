@@ -226,6 +226,7 @@ const BoardPage = () => {
       <Header 
         onTaskCreated={handleTaskCreated}
         currentBoard={boardName}  
+        allAssignees={assignees} 
       />
 
       <div className="board-container">

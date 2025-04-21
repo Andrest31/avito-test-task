@@ -3,12 +3,20 @@ import { NavLink, useLocation } from "react-router-dom";
 import TaskModal, { TaskData } from "../TaskModal/TaskModal";
 import "./Header.css";
 
+interface Assignee {
+  id: number;
+  fullName: string;
+  email: string;
+  avatarUrl: string;
+}
+
 type HeaderProps = {
   onTaskCreated?: (task: TaskData) => void;
   currentBoard?: string;
+  allAssignees?: Assignee[];
 };
 
-const Header = ({ onTaskCreated, currentBoard }: HeaderProps) => {
+const Header = ({ onTaskCreated, currentBoard, allAssignees = [] }: HeaderProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const location = useLocation();
 
@@ -55,6 +63,7 @@ const Header = ({ onTaskCreated, currentBoard }: HeaderProps) => {
         }}
         isFromBoard={isBoardPage}
         initialBoard={isBoardPage ? currentBoard : undefined}
+        allAssignees={allAssignees}
       />
     </>
   );
