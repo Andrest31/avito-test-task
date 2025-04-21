@@ -17,7 +17,8 @@ interface ApiTask {
   description: string;
   priority: 'Low' | 'Medium' | 'High';
   status: 'Backlog' | 'InProgress' | 'Done';
-  assignee: Assignee;
+  assignee?: Assignee;
+  boardName?: string;
 }
 
 interface BoardInfo {
@@ -87,11 +88,11 @@ const BoardPage = () => {
         id: task.id.toString(),
         title: task.title,
         description: task.description,
-        board: currentBoardName,
+        board: task.boardName || currentBoardName,
         boardId: id || "",
-        assignee: task.assignee.fullName,
-        assigneeId: task.assignee.id.toString(),
-        priority: task.priority.toLowerCase() as TaskPriority,
+        assignee: task.assignee?.fullName || "",
+        assigneeId: task.assignee?.id?.toString() || "",
+        priority: task.priority?.toLowerCase() as TaskPriority || 'medium',
         status: mapStatus(task.status)
       }));
 
@@ -99,11 +100,7 @@ const BoardPage = () => {
 
       const taskId = searchParams.get('taskId');
       if (taskId) {
-        const taskToEdit = transformedTasks.find(t => t.id === taskId);
-        if (taskToEdit) {
-          setEditingTask(taskToEdit);
-          setIsModalOpen(true);
-        }
+        await fetchTaskDetails(taskId);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error occurred");
@@ -112,47 +109,74 @@ const BoardPage = () => {
     }
   };
 
+  const fetchTaskDetails = async (taskId: string) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/v1/tasks/${taskId}`);
+      if (!response.ok) throw new Error(`Failed to fetch task details`);
+
+      const responseData = await response.json();
+      const taskData = responseData.data;
+
+      const boardInfo = allBoards.find(b => b.id.toString() === id);
+      const currentBoardName = boardInfo?.name || `Доска ${id}`;
+
+      const taskDetails: Task = {
+        id: taskData.id.toString(),
+        title: taskData.title,
+        description: taskData.description,
+        board: taskData.boardName || currentBoardName,
+        boardId: id || "",
+        assignee: taskData.assignee?.fullName || "",
+        assigneeId: taskData.assignee?.id?.toString() || "",
+        priority: taskData.priority?.toLowerCase() as TaskPriority || 'medium',
+        status: mapStatus(taskData.status)
+      };
+
+      setEditingTask(taskDetails);
+      setIsModalOpen(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load task details");
+    }
+  };
+
   const updateColumns = (tasks: Task[]) => {
     const todoTasks = tasks.filter(task => task.status === 'todo').sort((a, b) => sortTasks(a, b));
     const inProgressTasks = tasks.filter(task => task.status === 'in_progress').sort((a, b) => sortTasks(a, b));
     const doneTasks = tasks.filter(task => task.status === 'done').sort((a, b) => sortTasks(a, b));
-  
+
     setColumns([
       { id: 'todo', title: 'To Do', tasks: todoTasks },
       { id: 'in_progress', title: 'In Progress', tasks: inProgressTasks },
       { id: 'done', title: 'Done', tasks: doneTasks }
     ]);
   };
-  
-  // Функция сортировки задач (по приоритету или другому полю)
+
   const sortTasks = (a: Task, b: Task) => {
-    // Сначала сортировка по статусу (приоритету)
     const priorityOrder: { [key in TaskPriority]: number } = {
       low: 1,
       medium: 2,
       high: 3
     };
-  
-    // Сортировка сначала по статусу (приоритету), а потом по названию
+
     if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
-      return priorityOrder[b.priority] - priorityOrder[a.priority];  // Сортировка по убыванию приоритета
+      return priorityOrder[b.priority] - priorityOrder[a.priority];
     }
-  
-    // Если приоритет одинаковый, сортируем по названию (по алфавиту)
+
     return a.title.localeCompare(b.title);
   };
-  
-  
 
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const boardsResponse = await fetch('http://localhost:8080/api/v1/boards');
+        const [boardsResponse, assigneesResponse] = await Promise.all([
+          fetch('http://localhost:8080/api/v1/boards'),
+          fetch('http://localhost:8080/api/v1/users')
+        ]);
+
         if (!boardsResponse.ok) throw new Error('Failed to fetch boards');
         const boardsResult: BoardsResponse = await boardsResponse.json();
         setAllBoards(boardsResult.data || []);
 
-        const assigneesResponse = await fetch('http://localhost:8080/api/v1/users');
         if (!assigneesResponse.ok) throw new Error('Failed to fetch assignees');
         const assigneesResult = await assigneesResponse.json();
         setAssignees(assigneesResult.data || []);
@@ -164,7 +188,6 @@ const BoardPage = () => {
     fetchInitialData();
   }, []);
 
-  // ✅ Новый useEffect, дожидается загрузки досок
   useEffect(() => {
     if (id && allBoards.length > 0) {
       fetchBoardData();
@@ -186,7 +209,7 @@ const BoardPage = () => {
         ...column,
         tasks: column.tasks.filter(t => t.id !== updatedTask.id)
       }));
-  
+
       return filteredColumns.map(column => {
         if (column.id === updatedTask.status) {
           return {
@@ -196,26 +219,22 @@ const BoardPage = () => {
               {
                 ...updatedTask,
                 id: updatedTask.id ?? "",
-                assignee:
-                  assignees.find(a => a.id.toString() === updatedTask.assigneeId)?.fullName ||
-                  updatedTask.assignee
+                assignee: assignees.find(a => a.id.toString() === updatedTask.assigneeId)?.fullName || updatedTask.assignee
               }
-            ].sort((a, b) => sortTasks(a, b))  // Сортируем задачи в новом столбце
+            ].sort(sortTasks)
           };
         }
         return column;
       });
     });
-  
+
     setIsModalOpen(false);
     setEditingTask(null);
     window.history.replaceState({}, '', `/board/${id}`);
   };
-  
 
-  const handleTaskClick = (task: Task) => {
-    setEditingTask(task);
-    setIsModalOpen(true);
+  const handleTaskClick = async (task: Task) => {
+    await fetchTaskDetails(task.id);
   };
 
   if (loading) return <div className="loading-message">Загрузка задач...</div>;

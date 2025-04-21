@@ -204,7 +204,7 @@ const TaskModal = ({
         if (!response.ok) throw new Error(`Ошибка при создании задачи: ${response.status}`);
 
         const responseData = await response.json();
-        const newTaskId = responseData.id?.toString() || responseData.data?.id?.toString();
+        const newTaskId = responseData.id?.toString() || responseData.data?.id?.toString() || '';
         if (!newTaskId) throw new Error('Не удалось получить ID созданной задачи');
 
         const newTask: TaskData = {
@@ -212,7 +212,7 @@ const TaskModal = ({
           title: formData.title,
           description: formData.description,
           board: boardName,
-          boardId: boardId.toString(),
+          boardId: boardId.toString() || '',
           priority: formData.priority,
           status: formData.status,
           assignee: assigneeName,
