@@ -136,17 +136,16 @@ const TaskModal = ({
     e.preventDefault();
     setLoading(true);
     setError(null);
-
+  
     try {
       const priorityMap = {
         low: 'Low',
         medium: 'Medium',
         high: 'High'
       };
-
-      const currentAssigneeId = formData.assigneeId || 
-                              (initialData?.assigneeId ? initialData.assigneeId : '');
-
+  
+      const currentAssigneeId = formData.assigneeId || initialData?.assigneeId || '';
+  
       const taskPayload = {
         title: formData.title,
         description: formData.description,
@@ -154,8 +153,9 @@ const TaskModal = ({
         status: mapStatusToApi(formData.status),
         assigneeId: currentAssigneeId ? parseInt(currentAssigneeId) : 0
       };
-
+  
       if (initialData?.id) {
+        // Обновление задачи
         const response = await fetch(`http://localhost:8080/api/v1/tasks/update/${initialData.id}`, {
           method: 'PUT',
           headers: {
@@ -163,9 +163,9 @@ const TaskModal = ({
           },
           body: JSON.stringify(taskPayload)
         });
-
+  
         if (!response.ok) throw new Error(`Ошибка при обновлении задачи: ${response.status}`);
-
+  
         onTaskCreated({
           ...formData,
           id: initialData.id,
@@ -173,12 +173,15 @@ const TaskModal = ({
           assigneeId: currentAssigneeId
         });
       } else {
-        const boardId = isCalledFromBoardPage 
+        // Создание новой задачи
+        const boardIdString = isCalledFromBoardPage 
           ? location.pathname.split('/').pop() 
-          : boards.find(b => b.name === formData.board)?.id;
-        
-        if (!boardId) throw new Error('Не выбран проект');
-
+          : boards.find(b => b.name === formData.board)?.id?.toString();
+  
+        if (!boardIdString) throw new Error('Не выбран проект');
+  
+        const boardId = parseInt(boardIdString); // 🔥 ВАЖНО: привести к числу
+  
         const response = await fetch('http://localhost:8080/api/v1/tasks/create', {
           method: 'POST',
           headers: {
@@ -186,21 +189,24 @@ const TaskModal = ({
           },
           body: JSON.stringify({
             ...taskPayload,
-            boardId
+            boardId: boardId // 👈 передаём числом, а не строкой
           })
         });
-
+  
         if (!response.ok) throw new Error(`Ошибка при создании задачи: ${response.status}`);
-
-        const newTask = await response.json();
+  
+        const responseData = await response.json();
+        const newTaskId = responseData.id?.toString() || responseData.data?.id?.toString();
+        if (!newTaskId) throw new Error('Не удалось получить ID созданной задачи');
+  
         onTaskCreated({
           ...formData,
-          id: newTask.id.toString(),
+          id: newTaskId,
           boardId: boardId.toString(),
           assigneeId: currentAssigneeId
         });
       }
-
+  
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Неизвестная ошибка');
@@ -208,6 +214,7 @@ const TaskModal = ({
       setLoading(false);
     }
   };
+  
 
   if (!isOpen) return null;
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import TaskModal, { TaskData } from "../../components/TaskModal/TaskModal";
+import Header from "../../components/Header/Header";
 import "./BoardPage.css";
 
 interface Assignee {
@@ -58,6 +59,7 @@ interface Column {
 const BoardPage = () => {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [columns, setColumns] = useState<Column[]>([]);
@@ -151,42 +153,10 @@ const BoardPage = () => {
   };
 
   const handleTaskCreated = (updatedTask: TaskData) => {
-    if (!updatedTask.id) return;
-
-    const taskId = updatedTask.id;
-    const newTask: Task = {
-      id: taskId,
-      title: updatedTask.title,
-      description: updatedTask.description,
-      board: updatedTask.board || boardName,
-      boardId: updatedTask.boardId || id || "",
-      assignee: updatedTask.assignee,
-      assigneeId: updatedTask.assigneeId || "",
-      priority: updatedTask.priority,
-      status: updatedTask.status
-    };
-
-    setColumns(prevColumns => {
-      // 1. Удаляем задачу из всех колонок
-      const filteredColumns = prevColumns.map(column => ({
-        ...column,
-        tasks: column.tasks.filter(task => task.id !== taskId)
-      }));
-
-      // 2. Добавляем обновленную задачу в нужную колонку
-      return filteredColumns.map(column => {
-        if (column.id === newTask.status) {
-          return {
-            ...column,
-            tasks: [...column.tasks, newTask]
-          };
-        }
-        return column;
-      });
-    });
-
+    fetchBoardData(); // Перезагружаем данные с сервера
     setIsModalOpen(false);
     setEditingTask(null);
+    window.history.replaceState({}, '', `/board/${id}`);
   };
 
   const handleTaskClick = (task: Task) => {
@@ -198,36 +168,43 @@ const BoardPage = () => {
   if (error) return <div className="error-message">Ошибка: {error}</div>;
 
   return (
-    <div className="board-container">
-      <div className="board-header">
-        <h2 className="board-title">{boardName}</h2>
-      </div>
+    <div className="board-page">
+      <Header 
+        onTaskCreated={handleTaskCreated}
+        currentBoard={boardName}
+      />
       
-      <div className="board-content">
-        <div className="board-columns">
-          {columns.map(column => (
-            <div key={column.id} className="board-column">
-              <h3 className="column-title">{column.title} ({column.tasks.length})</h3>
-              <div className="tasks-list">
-                {column.tasks.map(task => (
-                  <div 
-                    key={task.id} 
-                    className="task-card"
-                    onClick={() => handleTaskClick(task)}
-                  >
-                    <h4>{task.title}</h4>
-                    <p>{task.description}</p>
-                    <div className="task-meta">
-                      <span className={`task-priority ${task.priority}`}>
-                        {task.priority}
-                      </span>
-                      <span className="task-assignee">{task.assignee}</span>
+      <div className="board-container">
+        <div className="board-header">
+          <h2 className="board-title">{boardName}</h2>
+        </div>
+        
+        <div className="board-content">
+          <div className="board-columns">
+            {columns.map(column => (
+              <div key={column.id} className="board-column">
+                <h3 className="column-title">{column.title} ({column.tasks.length})</h3>
+                <div className="tasks-list">
+                  {column.tasks.map(task => (
+                    <div 
+                      key={task.id} 
+                      className="task-card"
+                      onClick={() => handleTaskClick(task)}
+                    >
+                      <h4>{task.title}</h4>
+                      <p>{task.description}</p>
+                      <div className="task-meta">
+                        <span className={`task-priority ${task.priority}`}>
+                          {task.priority}
+                        </span>
+                        <span className="task-assignee">{task.assignee}</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
 

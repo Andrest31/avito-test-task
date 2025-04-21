@@ -110,34 +110,38 @@ const IssuesPage = () => {
     return matchesSearch && matchesBoard && matchesStatus;
   });
 
-  const handleTaskCreated = (newTaskData: Omit<TaskData, 'id'>) => {
-    const statusMap = {
-      todo: 'To Do',
-      in_progress: 'In Progress',
-      done: 'Done'
-    };
-    
-    if (editingTask) {
-      setAllTasks(allTasks.map(task => 
-        task.id === editingTask.id ? { 
-          ...task, 
-          ...newTaskData,
-          boardId: newTaskData.boardId || task.boardId,
-          status: statusMap[newTaskData.status] || task.status
-        } : task
-      ));
-    } else {
-      const newTask: Task = {
-        ...newTaskData,
-        id: `${allTasks.length + 1}`,
-        boardId: newTaskData.boardId || '1',
-        status: statusMap[newTaskData.status] || 'To Do'
+  const handleTaskCreated = (newTaskData: TaskData) => {
+    if (newTaskData.id) {
+      const statusMap = {
+        todo: 'To Do',
+        in_progress: 'In Progress',
+        done: 'Done'
       };
-      setAllTasks([...allTasks, newTask]);
       
-      // Редирект на страницу доски после создания новой задачи
-      if (newTaskData.boardId) {
-        navigate(`/board/${newTaskData.boardId}`);
+      if (editingTask) {
+        setAllTasks(allTasks.map(task => 
+          task.id === editingTask.id ? { 
+            ...task, 
+            ...newTaskData,
+            boardId: newTaskData.boardId || task.boardId,
+            status: statusMap[newTaskData.status as keyof typeof statusMap] || task.status
+          } : task
+        ));
+      } else {
+        const newTask: Task = {
+          ...newTaskData,
+          id: newTaskData.id,
+          boardId: newTaskData.boardId || '1',
+          status: statusMap[newTaskData.status as keyof typeof statusMap] || 'To Do',
+          priority: newTaskData.priority,
+          assignee: newTaskData.assignee,
+          assigneeId: newTaskData.assigneeId
+        };
+        setAllTasks([...allTasks, newTask]);
+        
+        if (newTaskData.boardId) {
+          navigate(`/board/${newTaskData.boardId}`);
+        }
       }
     }
     setIsModalOpen(false);
@@ -168,138 +172,140 @@ const IssuesPage = () => {
   }
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <h1 className="page-title">Все задачи</h1>
-        
-        <div className="controls">
-          <div className="search-container">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Поиск по задачам..."
-              className="search-input"
-            />
-          </div>
+    <div className="issues-page">
+      <div className="page-container">
+        <div className="page-header">
+          <h1 className="page-title">Все задачи</h1>
+          
+          <div className="controls">
+            <div className="search-container">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Поиск по задачам..."
+                className="search-input"
+              />
+            </div>
 
-          <div className="filters-wrapper">
-            <button 
-              className="filters-button"
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              Фильтры
-            </button>
-
-            {showFilters && (
-              <div 
-                className="filters-dropdown"
-                onMouseLeave={() => setShowFilters(false)}
+            <div className="filters-wrapper">
+              <button 
+                className="filters-button"
+                onClick={() => setShowFilters(!showFilters)}
               >
-                <div 
-                  className="filter-category"
-                  onMouseEnter={() => setHoveredSubmenu('boards')}
-                >
-                  Доски {activeBoard && `→ ${activeBoard}`}
-                  {hoveredSubmenu === 'boards' && (
-                    <div className="submenu">
-                      {boards.map(board => (
-                        <div
-                          key={board}
-                          className={`submenu-item ${activeBoard === board ? 'active' : ''}`}
-                          onClick={() => setActiveBoard(board)}
-                        >
-                          {board}
-                        </div>
-                      ))}
-                      <div className="submenu-divider"></div>
-                      <div 
-                        className="submenu-item"
-                        onClick={() => setActiveBoard(null)}
-                      >
-                        Сбросить
-                      </div>
-                    </div>
-                  )}
-                </div>
+                Фильтры
+              </button>
 
+              {showFilters && (
                 <div 
-                  className="filter-category"
-                  onMouseEnter={() => setHoveredSubmenu('statuses')}
+                  className="filters-dropdown"
+                  onMouseLeave={() => setShowFilters(false)}
                 >
-                  Статусы {activeStatus && `→ ${activeStatus}`}
-                  {hoveredSubmenu === 'statuses' && (
-                    <div className="submenu">
-                      {statuses.map(status => (
-                        <div
-                          key={status}
-                          className={`submenu-item ${activeStatus === status ? 'active' : ''}`}
-                          onClick={() => setActiveStatus(status)}
+                  <div 
+                    className="filter-category"
+                    onMouseEnter={() => setHoveredSubmenu('boards')}
+                  >
+                    Доски {activeBoard && `→ ${activeBoard}`}
+                    {hoveredSubmenu === 'boards' && (
+                      <div className="submenu">
+                        {boards.map(board => (
+                          <div
+                            key={board}
+                            className={`submenu-item ${activeBoard === board ? 'active' : ''}`}
+                            onClick={() => setActiveBoard(board)}
+                          >
+                            {board}
+                          </div>
+                        ))}
+                        <div className="submenu-divider"></div>
+                        <div 
+                          className="submenu-item"
+                          onClick={() => setActiveBoard(null)}
                         >
-                          {status}
+                          Сбросить
                         </div>
-                      ))}
-                      <div className="submenu-divider"></div>
-                      <div 
-                        className="submenu-item"
-                        onClick={() => setActiveStatus(null)}
-                      >
-                        Сбросить
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
+
+                  <div 
+                    className="filter-category"
+                    onMouseEnter={() => setHoveredSubmenu('statuses')}
+                  >
+                    Статусы {activeStatus && `→ ${activeStatus}`}
+                    {hoveredSubmenu === 'statuses' && (
+                      <div className="submenu">
+                        {statuses.map(status => (
+                          <div
+                            key={status}
+                            className={`submenu-item ${activeStatus === status ? 'active' : ''}`}
+                            onClick={() => setActiveStatus(status)}
+                          >
+                            {status}
+                          </div>
+                        ))}
+                        <div className="submenu-divider"></div>
+                        <div 
+                          className="submenu-item"
+                          onClick={() => setActiveStatus(null)}
+                        >
+                          Сбросить
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="tasks-grid">
-        {filteredTasks.length > 0 ? (
-          filteredTasks.map(task => (
-            <TaskCard 
-              key={task.id} 
-              task={task} 
-              onEditClick={handleEditClick}
-            />
-          ))
-        ) : (
-          <div className="no-results">Задачи не найдены</div>
-        )}
-      </div>
+        <div className="tasks-grid">
+          {filteredTasks.length > 0 ? (
+            filteredTasks.map(task => (
+              <TaskCard 
+                key={task.id} 
+                task={task} 
+                onEditClick={handleEditClick}
+              />
+            ))
+          ) : (
+            <div className="no-results">Задачи не найдены</div>
+          )}
+        </div>
 
-      <nav className="page-nav">
-        <button 
-          className="nav-link create-btn"
-          onClick={() => {
+        <nav className="page-nav">
+          <button 
+            className="nav-link create-btn"
+            onClick={() => {
+              setEditingTask(null);
+              setIsModalOpen(true);
+            }}
+          >
+            Создать задачу
+          </button>
+        </nav>
+
+        <TaskModal 
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
             setEditingTask(null);
-            setIsModalOpen(true);
           }}
-        >
-          Создать задачу
-        </button>
-      </nav>
-
-      <TaskModal 
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingTask(null);
-        }}
-        onTaskCreated={handleTaskCreated}
-        initialData={editingTask ? {
-          id: editingTask.id,
-          title: editingTask.title,
-          description: editingTask.description,
-          board: editingTask.board,
-          boardId: editingTask.boardId,
-          priority: editingTask.priority,
-          status: editingTask.status as 'todo' | 'in_progress' | 'done',
-          assignee: editingTask.assignee,
-          assigneeId: editingTask.assigneeId
-        } : undefined}
-      />
+          onTaskCreated={handleTaskCreated}
+          initialData={editingTask ? {
+            id: editingTask.id,
+            title: editingTask.title,
+            description: editingTask.description,
+            board: editingTask.board,
+            boardId: editingTask.boardId,
+            priority: editingTask.priority,
+            status: editingTask.status as 'todo' | 'in_progress' | 'done',
+            assignee: editingTask.assignee,
+            assigneeId: editingTask.assigneeId
+          } : undefined}
+        />
+      </div>
     </div>
   );
 };

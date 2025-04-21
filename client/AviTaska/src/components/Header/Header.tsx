@@ -4,7 +4,7 @@ import TaskModal, { TaskData } from "../TaskModal/TaskModal";
 import "./Header.css";
 
 type HeaderProps = {
-  onTaskCreated?: (task: Omit<TaskData, 'id'>) => void;
+  onTaskCreated?: (task: TaskData) => void;
   currentBoard?: string;
 };
 
@@ -12,7 +12,7 @@ const Header = ({ onTaskCreated, currentBoard }: HeaderProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const location = useLocation();
 
-  const isBoardPage = location.pathname.includes('/board/');
+  const isBoardPage = location.pathname.startsWith("/board/");
 
   return (
     <>
@@ -20,22 +20,22 @@ const Header = ({ onTaskCreated, currentBoard }: HeaderProps) => {
         <nav className="main-nav">
           <NavLink 
             to="/issues" 
-            className={({ isActive }) => 
-              `nav-link ${isActive ? 'active' : ''}`
-            }
+            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
           >
             Все задачи
           </NavLink>
           <NavLink 
             to="/boards" 
-            className={({ isActive }) => 
-              `nav-link ${isActive ? 'active' : ''}`
-            }
+            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
           >
             Проекты
           </NavLink>
         </nav>
-        <h1 className="logo">Taska</h1>
+
+        <h1 className="logo">
+          Taska
+        </h1>
+
         <nav className="main-nav">
           <button 
             className="nav-link create-btn"
@@ -49,9 +49,12 @@ const Header = ({ onTaskCreated, currentBoard }: HeaderProps) => {
       <TaskModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onTaskCreated={onTaskCreated || (() => {})}
+        onTaskCreated={(task) => {
+          setIsModalOpen(false);
+          onTaskCreated?.(task);
+        }}
         isFromBoard={isBoardPage}
-        initialBoard={currentBoard}
+        initialBoard={isBoardPage ? currentBoard : undefined}
       />
     </>
   );
