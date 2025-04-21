@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import TaskCard from "../../components/TaskCard/TaskCard";
 import TaskModal, { TaskData } from "../../components/TaskModal/TaskModal";
 import "./IssuesPage.css";
@@ -39,7 +38,6 @@ type Task = {
 };
 
 const IssuesPage = () => {
-  const navigate = useNavigate();
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -124,15 +122,17 @@ const IssuesPage = () => {
         in_progress: 'In Progress',
         done: 'Done'
       };
-      
+  
       if (editingTask) {
-        setAllTasks(allTasks.map(task => 
-          task.id === editingTask.id ? { 
-            ...task, 
-            ...newTaskData,
-            boardId: newTaskData.boardId || task.boardId,
-            status: statusMap[newTaskData.status as keyof typeof statusMap] || task.status
-          } : task
+        setAllTasks(allTasks.map(task =>
+          task.id === editingTask.id
+            ? {
+                ...task,
+                ...newTaskData,
+                boardId: newTaskData.boardId || task.boardId,
+                status: statusMap[newTaskData.status as keyof typeof statusMap] || task.status
+              }
+            : task
         ));
       } else {
         const newTask: Task = {
@@ -144,16 +144,13 @@ const IssuesPage = () => {
           assignee: newTaskData.assignee,
           assigneeId: newTaskData.assigneeId
         };
-        setAllTasks([...allTasks, newTask]);
-        
-        if (newTaskData.boardId) {
-          navigate(`/board/${newTaskData.boardId}`);
-        }
+        setAllTasks(prevTasks => [...prevTasks, newTask]); // Добавляем задачу в список
       }
     }
     setIsModalOpen(false);
     setEditingTask(null);
   };
+  
 
   const handleEditClick = (task: Task) => {
     const statusMap = {

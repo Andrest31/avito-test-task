@@ -249,9 +249,12 @@ const BoardPage = () => {
                       <h4>{task.title}</h4>
                       <p>{task.description}</p>
                       <div className="task-meta">
-                        <span className={`task-priority ${task.priority}`}>
-                          {task.priority}
-                        </span>
+                      <span 
+                          className="task-priority"
+                          data-priority={task.priority}                      
+                          >
+                        {task.priority}
+                      </span>                        
                         <span className="task-assignee">{task.assignee}</span>
                       </div>
                     </div>
